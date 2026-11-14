@@ -1,0 +1,38 @@
+[project]
+name = "choir-solfa"
+version = "0.1.0"
+description = "Turn a song (link or upload) into a tonic solfa score for soprano, alto, tenor and bass."
+requires-python = ">=3.11,<3.12"
+dependencies = [
+  "basic-pitch",
+  "demucs",
+  "fastapi",
+  "librosa",
+  "numpy",
+  "pretty_midi",
+  "python-multipart",
+  "reportlab",
+  "setuptools<81",  # resampy (used by basic-pitch) still imports pkg_resources
+  "soundfile",
+  "uvicorn",
+  "yt-dlp[default]",  # includes the YouTube challenge solver (yt-dlp-ejs)
+]
+
+[project.optional-dependencies]
+dev = ["pytest"]
+
+[project.scripts]
+choir-solfa = "choir_solfa.cli:main"
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+choir_solfa = ["web/*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

@@ -1,0 +1,212 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Choir Solfa</title>
+<style>
+  :root {
+    --bg: #f7f5f0; --card: #ffffff; --ink: #1f1d1a; --muted: #6b665d; --line: #e3ded4;
+    --accent: #7a3e1d; --accent-ink: #ffffff; --soft: #f1e8df; --bad: #a32020; --good: #2d6a3e;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #171614; --card: #201f1c; --ink: #ece8e1; --muted: #a39d92; --line: #36332e;
+      --accent: #d98c5f; --accent-ink: #1b120c; --soft: #2c2520; --bad: #ef7d7d; --good: #7cc48f;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink);
+         font: 16px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+  main { max-width: 760px; margin: 0 auto; padding: 40px 16px 64px; }
+  h1 { font-size: 28px; margin: 0 0 4px; letter-spacing: -0.01em; }
+  .lead { color: var(--muted); margin: 0 0 28px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 22px; margin-bottom: 18px; }
+  label { display: block; font-weight: 600; font-size: 14px; margin-bottom: 6px; }
+  input[type=url], input[type=text], select {
+    width: 100%; font: inherit; color: var(--ink); background: var(--bg); border: 1px solid var(--line);
+    border-radius: 9px; padding: 10px 12px; }
+  input:focus, select:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .or { text-align: center; color: var(--muted); font-size: 13px; margin: 14px 0; }
+  .drop { border: 1.5px dashed var(--line); border-radius: 10px; padding: 22px; text-align: center; cursor: pointer;
+          color: var(--muted); transition: background .15s, border-color .15s; }
+  .drop.over, .drop:hover { background: var(--soft); border-color: var(--accent); }
+  .drop strong { color: var(--ink); }
+  .row { display: grid; grid-template-columns: 1.4fr 0.8fr 1.4fr; gap: 12px; margin-top: 18px; }
+  @media (max-width: 600px) { .row { grid-template-columns: 1fr; } }
+  .hint { color: var(--muted); font-size: 13px; margin-top: 6px; }
+  button, .btn {
+    font: inherit; font-weight: 600; border: 0; border-radius: 10px; padding: 11px 18px; cursor: pointer;
+    background: var(--accent); color: var(--accent-ink); text-decoration: none; display: inline-block; }
+  button:disabled { opacity: .5; cursor: default; }
+  .btn.secondary { background: var(--soft); color: var(--ink); }
+  .actions { margin-top: 20px; display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+  .bar { height: 8px; background: var(--soft); border-radius: 99px; overflow: hidden; margin: 12px 0 6px; }
+  .bar > div { height: 100%; width: 0; background: var(--accent); transition: width .4s; }
+  .stage { font-weight: 600; }
+  .error { color: var(--bad); font-weight: 600; }
+  .facts { display: flex; gap: 8px; flex-wrap: wrap; margin: 6px 0 4px; }
+  .fact { background: var(--soft); border-radius: 99px; padding: 3px 11px; font-size: 14px; }
+  pre { margin: 16px 0 0; padding: 16px; background: var(--bg); border: 1px solid var(--line); border-radius: 10px;
+        overflow-x: auto; font: 14px/1.6 ui-monospace, "SF Mono", Menlo, monospace; white-space: pre; }
+  .note { font-size: 14px; color: var(--muted); margin-top: 10px; }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Choir Solfa</h1>
+  <p class="lead">Give it a song. Get tonic solfa for soprano, alto, tenor and bass.</p>
+
+  <form class="card" id="form">
+    <label for="url">Link to the song</label>
+    <input type="url" id="url" name="url" placeholder="https://www.youtube.com/watch?v=…" autocomplete="off">
+    <div class="or">or</div>
+    <div class="drop" id="drop" tabindex="0" role="button">
+      <strong>Choose a file</strong> or drop it here<br>
+      <span id="fileName">MP3, WAV, M4A, or a video file</span>
+    </div>
+    <input type="file" id="file" accept="audio/*,video/*" hidden>
+
+    <div class="row">
+      <div>
+        <label for="mode">Song type</label>
+        <select id="mode" name="mode">
+          <option value="auto">Work it out for me</option>
+          <option value="choir">A choir sings the parts</option>
+          <option value="solo">One lead singer: arrange parts</option>
+        </select>
+      </div>
+      <div>
+        <label for="meter">Time</label>
+        <select id="meter" name="meter">
+          <option value="auto">Work it out</option><option>4/4</option><option>3/4</option><option>2/4</option><option>6/8</option>
+        </select>
+      </div>
+      <div>
+        <label for="title">Title (optional)</label>
+        <input type="text" id="title" name="title" placeholder="Taken from the song">
+      </div>
+    </div>
+    <div class="actions">
+      <button type="submit" id="go">Make the solfa</button>
+      <span class="hint">A 4-minute song takes about 2 to 4 minutes.</span>
+    </div>
+  </form>
+
+  <section class="card" id="progress" hidden>
+    <div class="stage" id="stage">Starting</div>
+    <div class="bar"><div id="fill"></div></div>
+    <div class="hint" id="elapsed"></div>
+    <div class="error" id="error" hidden></div>
+  </section>
+
+  <section class="card" id="result" hidden>
+    <h2 id="rTitle" style="margin:0 0 6px;font-size:21px"></h2>
+    <div class="facts" id="facts"></div>
+    <p class="note" id="kindNote"></p>
+    <div class="actions">
+      <a class="btn" id="dlPdf" href="#">Download PDF</a>
+      <a class="btn secondary" id="dlTxt" href="#">Text version</a>
+      <a class="btn secondary" id="dlMid" href="#">MIDI (to practise)</a>
+    </div>
+    <pre id="preview" aria-label="Score preview"></pre>
+    <p class="note">This is an automatic transcription. Check each part by ear before you teach it.</p>
+  </section>
+</main>
+
+<script>
+const TOKEN = "__TOKEN__";
+const $ = (id) => document.getElementById(id);
+let chosenFile = null, timer = null, started = 0;
+
+const drop = $("drop"), fileInput = $("file");
+drop.addEventListener("click", () => fileInput.click());
+drop.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); fileInput.click(); } });
+fileInput.addEventListener("change", () => pick(fileInput.files[0]));
+["dragenter", "dragover"].forEach((t) => drop.addEventListener(t, (e) => { e.preventDefault(); drop.classList.add("over"); }));
+["dragleave", "drop"].forEach((t) => drop.addEventListener(t, (e) => { e.preventDefault(); drop.classList.remove("over"); }));
+drop.addEventListener("drop", (e) => pick(e.dataTransfer.files[0]));
+$("url").addEventListener("input", () => { if ($("url").value) pick(null); });
+
+function pick(f) {
+  chosenFile = f || null;
+  $("fileName").textContent = f ? f.name : "MP3, WAV, M4A, or a video file";
+  if (f) $("url").value = "";
+}
+
+$("form").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const url = $("url").value.trim();
+  if (!url && !chosenFile) { showError("Paste a link to a song or choose a file."); return; }
+  const body = new FormData();
+  body.append("mode", $("mode").value);
+  body.append("meter", $("meter").value);
+  body.append("title", $("title").value.trim());
+  if (chosenFile) body.append("file", chosenFile); else body.append("url", url);
+
+  $("go").disabled = true;
+  $("result").hidden = true;
+  $("progress").hidden = false;
+  $("error").hidden = true;
+  setStage("Sending the song", 0);
+  started = Date.now();
+  try {
+    const res = await fetch("/api/jobs", { method: "POST", body, headers: { "X-Token": TOKEN } });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || data.error || "Could not start.");
+    poll(data.id);
+  } catch (err) { showError(err.message); }
+});
+
+function setStage(text, frac) {
+  $("stage").textContent = text;
+  $("fill").style.width = Math.round(frac * 100) + "%";
+  const s = Math.round((Date.now() - started) / 1000);
+  $("elapsed").textContent = started ? `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")} so far` : "";
+}
+
+function showError(msg) {
+  $("progress").hidden = false;
+  $("error").hidden = false;
+  $("error").textContent = msg;
+  $("stage").textContent = "Stopped";
+  $("go").disabled = false;
+  clearTimeout(timer);
+}
+
+async function poll(id) {
+  try {
+    const res = await fetch(`/api/jobs/${id}`);
+    const job = await res.json();
+    if (!res.ok) throw new Error(job.detail || "Lost track of the job.");
+    if (job.status === "failed") return showError(job.error);
+    setStage(job.stage, job.progress);
+    if (job.status === "done") return show(id, job.result);
+  } catch (err) { return showError(err.message); }
+  timer = setTimeout(() => poll(id), 1000);
+}
+
+function show(id, r) {
+  $("go").disabled = false;
+  $("progress").hidden = true;
+  $("result").hidden = false;
+  $("rTitle").textContent = r.title;
+  $("facts").innerHTML = "";
+  [r.key, r.meter, `M. ${r.tempo}`, `${r.bars} bars`].forEach((t) => {
+    const s = document.createElement("span"); s.className = "fact"; s.textContent = t; $("facts").appendChild(s);
+  });
+  $("kindNote").textContent = r.kind === "choir"
+    ? "Heard as a choir: each part is written as it was sung."
+    : "Heard as a solo song: the melody is the soprano line, and alto, tenor and bass are a suggested arrangement.";
+  const base = `/api/jobs/${id}`;
+  $("dlPdf").href = `${base}/score.pdf?download=1`;
+  $("dlTxt").href = `${base}/score.txt?download=1`;
+  $("dlMid").href = `${base}/score.mid?download=1`;
+  $("preview").textContent = "Loading the score…";
+  fetch(`${base}/score.txt`).then((r) => r.text()).then((t) => { $("preview").textContent = t; });
+  $("result").scrollIntoView({ behavior: "smooth", block: "start" });
+}
+</script>
+</body>
+</html>

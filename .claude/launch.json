@@ -1,0 +1,12 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "choir-solfa",
+      "runtimeExecutable": ".venv/bin/choir-solfa",
+      "runtimeArgs": ["serve", "--no-open", "--port", "4790"],
+      "port": 4790,
+      "url": "http://127.0.0.1:4790"
+    }
+  ]
+}
