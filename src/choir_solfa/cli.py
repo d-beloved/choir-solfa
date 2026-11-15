@@ -20,6 +20,9 @@ def main(argv: list[str] | None = None) -> int:
     serve.add_argument("--public-host", action="append", default=None, metavar="NAME",
                        help="also answer at this address, e.g. solfa.example.com through a Cloudflare Tunnel "
                             "(or set CHOIR_SOLFA_PUBLIC_HOST); keep a login such as Cloudflare Access in front")
+    serve.add_argument("--restart-when-idle", action="store_true",
+                       help="quit when idle after a song or a code change, so a service manager such as "
+                            "launchd starts a fresh copy (picks up code changes and frees memory)")
 
     make = sub.add_parser("make", help="make a PDF from a file or link without the page")
     make.add_argument("song", help="audio/video file or a link to the song")
@@ -33,7 +36,8 @@ def main(argv: list[str] | None = None) -> int:
         return _make(args)
     from .server import serve as run_server
     return run_server(port=getattr(args, "port", 4790), open_browser=not getattr(args, "no_open", False),
-                      public_hosts=getattr(args, "public_host", None))
+                      public_hosts=getattr(args, "public_host", None),
+                      restart_when_idle=getattr(args, "restart_when_idle", False))
 
 
 def _make(args) -> int:

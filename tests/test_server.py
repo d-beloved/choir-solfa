@@ -38,6 +38,53 @@ def test_only_known_hosts_are_answered():
     assert client.delete(f"/api/songs/{A}", headers={"host": "solfa.example.com"}).status_code == 403  # no token
 
 
+class Clock:
+    def __init__(self, now=1000.0):
+        self.now = now
+
+    def __call__(self):
+        return self.now
+
+
+def test_restarts_only_when_idle_after_a_song(monkeypatch):
+    clock = Clock()
+    monkeypatch.setattr(server.time, "time", clock)
+    jobs = server.Jobs()
+    r = server.Restarter(jobs, quiet=120, stamp=lambda: 1.0, clock=clock)
+    assert r.reason() is None  # nothing happened yet
+    jobs.add(A, title="x")
+    jobs.update(A, status="working")
+    clock.now += 600
+    assert r.reason() is None  # never during a song
+    jobs.update(A, status="done")
+    clock.now += 60
+    assert r.reason() is None  # the page may still be fetching the score
+    clock.now += 61
+    assert "song" in r.reason()
+    r.touch()  # someone opened the page
+    assert r.reason() is None
+
+
+def test_restarts_after_code_settles():
+    clock = Clock()
+    stamp = [1.0]
+    r = server.Restarter(server.Jobs(), quiet=120, settle=10, stamp=lambda: stamp[0], clock=clock)
+    clock.now += 200
+    assert r.reason() is None
+    stamp[0] = clock.now - 3  # just saved a file
+    assert r.reason() is None
+    clock.now += 10
+    assert r.reason() == "the code changed"
+
+
+def test_token_survives_restarts_only_when_asked(tmp_path, monkeypatch):
+    monkeypatch.setattr(server, "HOME", tmp_path)
+    first = server._token(persist=True)
+    assert server._token(persist=True) == first
+    assert oct((tmp_path / "token").stat().st_mode & 0o777) == "0o600"
+    assert server._token(persist=False) != first
+
+
 def test_a_forgotten_job_comes_back_from_disk(tmp_path, monkeypatch):
     monkeypatch.setattr(server, "JOBS", tmp_path)
     _song(tmp_path, A, "Silent Night", 100.0)

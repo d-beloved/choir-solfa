@@ -1,7 +1,9 @@
 """Local web page: paste a link or drop a file, watch progress, download the score.
 
 Bound to 127.0.0.1 only, with a Host check (stops DNS-rebinding pages from
-reaching it) and a per-run token on every write request.
+reaching it) and a per-run token on every write request. With restart_when_idle
+(for running under launchd) the token is kept in HOME/token so it survives the
+server's own restarts.
 """
 from __future__ import annotations
 
@@ -10,6 +12,7 @@ import os
 import re
 import secrets
 import shutil
+import signal
 import threading
 import time
 import uuid
@@ -22,7 +25,8 @@ from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 
 HOME = Path(os.environ.get("CHOIR_SOLFA_HOME", Path.home() / ".choir-solfa"))
 JOBS = HOME / "jobs"
-WEB = Path(__file__).parent / "web"
+CODE = Path(__file__).parent
+WEB = CODE / "web"
 MAX_UPLOAD = 300 * 1024 * 1024
 JOB_ID = re.compile(r"^[0-9a-f]{32}$")
 JOB_FILE = "job.json"  # how the song was asked for: link, settings, time
@@ -33,6 +37,7 @@ class Jobs:
         self.lock = threading.Lock()
         self.state: dict[str, dict] = {}
         self.pool = ThreadPoolExecutor(max_workers=1)  # one song at a time; the rest wait in line
+        self.last_finished = 0.0  # when the last song finished or failed; 0 if none yet
 
     def add(self, job_id: str, **info) -> str:
         with self.lock:
@@ -43,6 +48,12 @@ class Jobs:
     def update(self, job_id: str, **fields) -> None:
         with self.lock:
             self.state[job_id].update(fields)
+            if fields.get("status") in ("done", "failed"):
+                self.last_finished = time.time()
+
+    def any_busy(self) -> bool:
+        with self.lock:
+            return any(job.get("status") in ("waiting", "working") for job in self.state.values())
 
     def get(self, job_id: str) -> dict | None:
         with self.lock:
@@ -56,17 +67,75 @@ class Jobs:
             return self.state.get(job_id, {}).get("status") in ("waiting", "working")
 
 
-def create_app(port: int, public_hosts: list[str] | None = None) -> FastAPI:
+def code_stamp() -> float:
+    """Newest change to the app's own code and page."""
+    return max((p.stat().st_mtime for p in CODE.rglob("*") if p.suffix in (".py", ".html") and p.is_file()),
+               default=0.0)
+
+
+class Restarter:
+    """Decides when an idle server should quit so launchd starts a fresh copy.
+
+    A fresh copy picks up code changes and gives back the memory the music models
+    keep after a song (about 2 GB). It never quits while a song is waiting or being
+    made, nor until the page has been left alone for `quiet` seconds.
+    """
+
+    def __init__(self, jobs: Jobs, quiet: float = 120.0, settle: float = 10.0, stamp=code_stamp, clock=time.time):
+        self.jobs, self.quiet, self.settle, self.stamp, self.clock = jobs, quiet, settle, stamp, clock
+        self.started_stamp = stamp()
+        self.last_request = clock()
+
+    def touch(self) -> None:
+        self.last_request = self.clock()
+
+    def reason(self) -> str | None:
+        if self.jobs.any_busy():
+            return None
+        now = self.clock()
+        if now - max(self.last_request, self.jobs.last_finished) < self.quiet:
+            return None
+        if self.jobs.last_finished:
+            return "a song was made, so its memory can be given back"
+        stamp = self.stamp()
+        if stamp != self.started_stamp and now - stamp >= self.settle:  # wait for a burst of saves to finish
+            return "the code changed"
+        return None
+
+
+def _token(persist: bool) -> str:
+    if not persist:
+        return secrets.token_urlsafe(24)
+    path = HOME / "token"
+    try:
+        saved = path.read_text(encoding="utf-8").strip()
+        if saved:
+            return saved
+    except FileNotFoundError:
+        pass
+    token = secrets.token_urlsafe(24)
+    HOME.mkdir(parents=True, exist_ok=True)
+    path.touch(mode=0o600)
+    path.write_text(token, encoding="utf-8")
+    return token
+
+
+def create_app(port: int, public_hosts: list[str] | None = None, restart_when_idle: bool = False) -> FastAPI:
     """public_hosts: extra names the page may be reached by, e.g. through a Cloudflare Tunnel.
     Put access control (such as Cloudflare Access) in front of any public name: the page hands
-    its token to whoever can load it."""
-    token = secrets.token_urlsafe(24)
+    its token to whoever can load it.
+    restart_when_idle: set app.state.restarter; serve() then quits when it says so."""
+    token = _token(persist=restart_when_idle)
     allowed_hosts = {f"127.0.0.1:{port}", f"localhost:{port}", *(h.strip().lower() for h in public_hosts or [] if h.strip())}
     jobs = Jobs()
     app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
+    restarter = Restarter(jobs) if restart_when_idle else None
+    app.state.restarter = restarter
 
     @app.middleware("http")
     async def host_check(request: Request, call_next):
+        if restarter:
+            restarter.touch()
         if request.headers.get("host", "").lower() not in allowed_hosts:
             return JSONResponse({"error": "Wrong host."}, status_code=403)
         if request.method != "GET" and not secrets.compare_digest(request.headers.get("x-token", ""), token):
@@ -227,18 +296,31 @@ def _run_job(jobs: Jobs, job_id: str, source: str, workdir: Path, mode: str, met
                 leftover.unlink(missing_ok=True)
 
 
-def serve(port: int = 4790, open_browser: bool = True, public_hosts: list[str] | None = None) -> int:
+def _watch(restarter: Restarter, every: float = 5.0) -> None:
+    while True:
+        time.sleep(every)
+        why = restarter.reason()
+        if why:
+            print(f"{time.strftime('%Y-%m-%d %H:%M:%S')} Quitting to restart fresh: {why}.", flush=True)
+            os.kill(os.getpid(), signal.SIGTERM)  # uvicorn shuts down cleanly; launchd starts a new copy
+            return
+
+
+def serve(port: int = 4790, open_browser: bool = True, public_hosts: list[str] | None = None,
+          restart_when_idle: bool = False) -> int:
     import uvicorn
 
     JOBS.mkdir(parents=True, exist_ok=True)
     if public_hosts is None:
         public_hosts = os.environ.get("CHOIR_SOLFA_PUBLIC_HOST", "").split(",")
     public_hosts = [h.strip() for h in public_hosts if h.strip()]
-    app = create_app(port, public_hosts)
+    app = create_app(port, public_hosts, restart_when_idle=restart_when_idle)
     url = f"http://127.0.0.1:{port}"
-    print(f"choir-solfa is running at {url}  (Ctrl+C to stop)")
+    print(f"{time.strftime('%Y-%m-%d %H:%M:%S')} choir-solfa is running at {url}  (Ctrl+C to stop)", flush=True)
     for host in public_hosts:
-        print(f"Also answering at https://{host}")
+        print(f"Also answering at https://{host}", flush=True)
+    if app.state.restarter:
+        threading.Thread(target=_watch, args=(app.state.restarter,), daemon=True).start()
     if open_browser:
         threading.Timer(1.0, lambda: webbrowser.open(url)).start()
     uvicorn.run(app, host="127.0.0.1", port=port, log_level="warning")

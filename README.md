@@ -44,6 +44,8 @@ The page only answers on your own Mac. To reach it from elsewhere, put a tunnel 
 
 (or set `CHOIR_SOLFA_PUBLIC_HOST`). Anyone who can open the page can make and delete songs, so put a login in front of the address, for example Cloudflare Access with email codes.
 
+To keep it running in the background, start it from a service manager such as launchd with `--restart-when-idle` added. The app then quits itself once nobody has used it for two minutes after a song or a code change, and the service manager starts a fresh copy. That picks up code changes and gives back the 2 GB or so of memory the note models keep after a song. It never quits while a song is being made.
+
 ### Spotify links
 
 In Spotify, open the song and use **Share → Copy song link**. Album, playlist and artist links are refused with a message.

@@ -16,7 +16,7 @@ A local tool that turns a song (link or file) into a four-part (SATB) tonic solf
 ## Conventions
 - Grid cells: 4 per pulse in simple time, 2 per pulse in 6/8 (`models.METERS`). Pitches are sounding MIDI; `theory.written_pitch` raises tenor and bass by an octave for the page.
 - Movable doh. Minor keys use the lah mode, so doh is the relative major.
-- The server binds to 127.0.0.1 only and checks the Host header, and non-GET requests need the per-run X-Token. Keep both if you change routes.
+- The server binds to 127.0.0.1 only and checks the Host header, and non-GET requests need the per-run X-Token. Keep both if you change routes. `--public-host` adds names to the Host check; `--restart-when-idle` (used under launchd) keeps the token in `~/.choir-solfa/token` so it survives the server quitting itself when idle after a song or a code change.
 - Messages shown on the page are plain words for choir leaders, not technical terms.
 
 ## Testing on real audio
