@@ -1,5 +1,6 @@
 """Past songs are read back from their folders on disk."""
 import json
+import os
 
 from choir_solfa import server
 
@@ -81,7 +82,8 @@ def test_token_survives_restarts_only_when_asked(tmp_path, monkeypatch):
     monkeypatch.setattr(server, "HOME", tmp_path)
     first = server._token(persist=True)
     assert server._token(persist=True) == first
-    assert oct((tmp_path / "token").stat().st_mode & 0o777) == "0o600"
+    if os.name != "nt":  # Windows files have no Unix permission bits
+        assert oct((tmp_path / "token").stat().st_mode & 0o777) == "0o600"
     assert server._token(persist=False) != first
 
 

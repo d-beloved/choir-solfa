@@ -45,6 +45,8 @@ def decode(path: Path, sr: int, channels: int) -> np.ndarray:
 
 def separate_vocals(mix: np.ndarray, progress: Progress = lambda f: None) -> tuple[np.ndarray, np.ndarray]:
     """Split a 44.1 kHz stereo mix into (vocals, accompaniment) with Demucs."""
+    import inspect
+
     import torch
     from demucs.apply import apply_model
     from demucs.pretrained import get_model
@@ -60,13 +62,16 @@ def separate_vocals(mix: np.ndarray, progress: Progress = lambda f: None) -> tup
         length = d.get("audio_length") or 1
         progress(min(1.0, d.get("segment_offset", 0) / length))
 
+    # demucs 4.0.1 (used on Intel Macs) has no progress callback.
+    extra = {"callback": callback} if "callback" in inspect.signature(apply_model).parameters else {}
+
     devices = ["mps", "cpu"] if torch.backends.mps.is_available() else ["cpu"]
     last_error = None
     for device in devices:
         try:
             with torch.no_grad():
                 sources = apply_model(model, wav[None], device=device, split=True, overlap=0.25,
-                                      progress=False, callback=callback)[0]
+                                      progress=False, **extra)[0]
             break
         except Exception as e:  # MPS can fail on some ops; fall back to the CPU
             last_error = e
