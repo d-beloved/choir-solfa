@@ -75,6 +75,23 @@ def choose_doh_midi(doh_pc: int, parts: dict) -> int:
     return min(candidates, key=cost)
 
 
+_LETTERS = "CDEFGAB"
+_NATURAL = {"C": 0, "D": 2, "E": 4, "F": 5, "G": 7, "A": 9, "B": 11}
+_MAJOR_STEPS = (0, 2, 4, 5, 7, 9, 11)
+_ACCIDENTAL = {0: "", 1: "#", 2: "##", -1: "b", -2: "bb"}
+
+
+def scale_letters(doh_pc: int) -> list[str]:
+    """Letter names of d r m f s l t for this doh, spelled as in the key (doh F# gives E#, not F)."""
+    start = _LETTERS.index(PC_NAMES[doh_pc % 12][0])
+    out = []
+    for i, step in enumerate(_MAJOR_STEPS):
+        letter = _LETTERS[(start + i) % 7]
+        diff = (doh_pc + step - _NATURAL[letter]) % 12
+        out.append(letter + _ACCIDENTAL[diff - 12 if diff > 6 else diff])
+    return out
+
+
 def key_label(doh_pc: int, tonic_pc: int, mode: str) -> str:
     label = f"Doh is {PC_NAMES[doh_pc]}"
     if mode == "minor":

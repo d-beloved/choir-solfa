@@ -154,4 +154,6 @@ def score_text(score, bars_per_line: int = 4) -> str:
                 row.append(" ".join(cells))
             end = " ||" if bars[-1] == n_bars - 1 else " |"
             lines.append(f"{p[0]}  | " + " | ".join(row) + end)
+    lines += ["", "How to read: | bar line   : beat   - hold the note   . half beat   , quarter beat   "
+                  "d¹ higher   s₁ lower   (blank) rest"]
     return "\n".join(lines) + "\n"

@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Callable
 
@@ -17,7 +17,7 @@ from .notation import score_text
 from .pdf import write_pdf
 from .rhythm import (align_to_bars, beat_grid, choose_bar_phase, fold_fast_beats, guess_meter, quantize, refine_beats,
                      tempo_from_beats)
-from .theory import PARTS, choose_doh_midi, detect_key, doh_pc_for, key_label
+from .theory import PARTS, choose_doh_midi, detect_key, doh_pc_for, key_label, scale_letters
 from .voices import clean_part, merge_resung, split_choir
 
 Progress = Callable[[str, float], None]
@@ -39,12 +39,13 @@ class Result:
     midi: Path
     found_on: str | None = None
     found_url: str | None = None
+    letters: list[str] = field(default_factory=list)  # d r m f s l t as letter names
 
     def to_dict(self) -> dict:
         return {
             "title": self.title, "kind": self.kind, "key": self.key, "meter": self.meter,
             "tempo": self.tempo, "bars": self.bars, "pdf": self.pdf.name, "midi": self.midi.name,
-            "found_on": self.found_on, "found_url": self.found_url,
+            "found_on": self.found_on, "found_url": self.found_url, "letters": self.letters,
         }
 
 
@@ -163,7 +164,7 @@ def run(source: str, workdir: Path, *, mode: str = "auto", meter: str = "auto", 
     (workdir / "score.txt").write_text(score_text(score), encoding="utf-8")
 
     result = Result(title, kind, key_label(doh_pc, tonic_pc, key_mode), meter, int(round(tempo)),
-                    total // m.cells_per_bar, pdf_path, midi_path, found_on, found_url)
+                    total // m.cells_per_bar, pdf_path, midi_path, found_on, found_url, scale_letters(doh_pc))
     (workdir / "result.json").write_text(json.dumps({**result.to_dict(), "polyphony": round(poly, 3)}, indent=2))
     progress("Done", 1.0)
     return result

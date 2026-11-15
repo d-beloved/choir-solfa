@@ -5,7 +5,7 @@ from choir_solfa.models import METERS, QNote, Score
 from choir_solfa.notation import bar_text, cell_states, render_part, render_pulse, runs_text
 from choir_solfa.pdf import write_pdf
 from choir_solfa.rhythm import align_to_bars, beat_grid, choose_bar_phase, fold_fast_beats, quantize
-from choir_solfa.theory import choose_doh_midi, detect_key, doh_pc_for, solfa
+from choir_solfa.theory import choose_doh_midi, detect_key, doh_pc_for, scale_letters, solfa
 from choir_solfa.voices import split_choir
 
 M44 = METERS["4/4"]
@@ -150,7 +150,23 @@ def test_pdf_writes(tmp_path):
                   ["Solo song: alto, tenor and bass are a suggested arrangement."])
     out = tmp_path / "s.pdf"
     write_pdf(score, str(out))
-    assert out.read_bytes()[:4] == b"%PDF"
+    data = out.read_bytes()
+    assert data[:4] == b"%PDF"
+    assert data.count(b"/Type /Page\n") + data.count(b"/Type /Page ") >= 2  # the score, then the how-to-read page
+
+
+def test_scale_letters_are_spelled_in_the_key():
+    assert scale_letters(0) == ["C", "D", "E", "F", "G", "A", "B"]
+    assert scale_letters(10) == ["Bb", "C", "D", "Eb", "F", "G", "A"]
+    assert scale_letters(6) == ["F#", "G#", "A#", "B", "C#", "D#", "E#"]
+    assert scale_letters(1) == ["Db", "Eb", "F", "Gb", "Ab", "Bb", "C"]
+
+
+def test_text_version_ends_with_a_reading_key():
+    from choir_solfa.notation import score_text
+    melody = [q(67, i, 1) for i in range(8)]
+    score = Score("Key test", 0, 0, "major", M44, 96, 60, 32, {"Soprano": melody}, "solo", [])
+    assert score_text(score).rstrip().splitlines()[-1].startswith("How to read:")
 
 
 def test_snap_prefers_pulse_and_half_pulse():

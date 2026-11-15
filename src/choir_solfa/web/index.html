@@ -143,6 +143,68 @@
   .steps li:nth-child(2) b { background: var(--sun); color: #2a1f05; }
   .steps li:nth-child(3) b { background: var(--teal); }
   [data-theme="dark"] .steps li:nth-child(3) b, [data-theme="dark"] .steps li:nth-child(1) b { color: #13152a; }
+  .steps:has(+ .guide-link) { margin-bottom: 14px; }
+  .guide-link { font: inherit; font-size: 15px; font-weight: 600; color: var(--primary-deep); background: none; border: 0; padding: 4px 0;
+                margin: 0 0 26px; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; }
+  [data-theme="dark"] .guide-link { color: var(--primary); }
+  .guide-link::before { content: "♪"; display: inline-grid; place-items: center; width: 26px; height: 26px; border-radius: 50%;
+                        background: var(--primary-soft); font-size: 15px; }
+  .guide-link:hover span { text-decoration: underline; text-underline-offset: 3px; }
+
+  /* How to read the score */
+  dialog.guide { width: min(740px, calc(100vw - 32px)); max-height: calc(100dvh - 40px); padding: 0; border: 1px solid var(--rule);
+                 border-radius: 26px; background: var(--card); color: var(--ink); box-shadow: 0 30px 80px -20px rgba(0, 0, 0, .5);
+                 overflow: auto; overscroll-behavior: contain; }
+  dialog.guide::backdrop { background: rgba(19, 21, 42, .5); backdrop-filter: blur(3px); }
+  dialog.guide[open] { animation: rise .3s cubic-bezier(.2, .7, .2, 1); }
+  .guide-head { position: sticky; top: 0; z-index: 1; display: flex; justify-content: space-between; align-items: center; gap: 12px;
+                padding: 22px 28px 14px; background: var(--card); border-bottom: 2px dashed var(--rule); }
+  .guide-head h2 { font-family: var(--display); font-weight: 700; font-size: 26px; margin: 0; }
+  .guide-close { font: inherit; font-size: 26px; line-height: 1; width: 42px; height: 42px; flex: none; border-radius: 50%;
+                 border: 2px solid var(--rule); background: var(--card); color: var(--ink); cursor: pointer; }
+  .guide-close:hover { border-color: var(--teal); color: var(--teal); }
+  .guide-body { padding: 18px 28px 30px; font-size: 16px; }
+  .guide-body > p:first-child { color: var(--muted); margin: 0 0 6px; }
+  .guide section { margin-top: 24px; }
+  .guide h3 { font-family: var(--display); font-weight: 700; font-size: 20px; margin: 0 0 10px; display: flex; align-items: center; gap: 10px; }
+  .guide h3 b { display: inline-grid; place-items: center; width: 28px; height: 28px; border-radius: 50%; font-size: 15px;
+                background: var(--c, var(--primary)); color: #fff; }
+  [data-theme="dark"] .guide h3 b { color: #13152a; }
+  .guide section:nth-of-type(2) h3 b { --c: var(--sun); color: #2a1f05; }
+  .guide section:nth-of-type(3) h3 b { --c: var(--teal); }
+  .guide section:nth-of-type(4) h3 b { --c: var(--n-l); }
+  .guide ul { margin: 12px 0 0; padding-left: 20px; display: grid; gap: 8px; }
+  .guide li::marker { color: var(--primary); }
+  .guide code, .marks td:first-child { font-family: var(--mono); font-size: 15px; }
+  .guide code { background: var(--bg); border: 1px solid var(--rule); border-radius: 7px; padding: 1px 6px; white-space: nowrap; }
+
+  .ladder { display: flex; gap: 6px; flex-wrap: nowrap; }
+  .ladder span { --c: var(--n-d); flex: 1; min-width: 0; display: grid; justify-items: center; padding: 8px 0 7px; border-radius: 14px;
+                 background: color-mix(in srgb, var(--c) 14%, var(--card)); border: 2px solid color-mix(in srgb, var(--c) 45%, transparent); }
+  .ladder span b { font-family: var(--display); font-size: 22px; line-height: 1.1; color: var(--c); }
+  .ladder span small { font-size: 13px; font-weight: 600; color: var(--muted); }
+  .ladder span:nth-child(2) { --c: var(--n-r); } .ladder span:nth-child(3) { --c: var(--n-m); margin-right: -3px; }
+  .ladder span:nth-child(4) { --c: var(--n-f); } .ladder span:nth-child(5) { --c: var(--n-s); }
+  .ladder span:nth-child(6) { --c: var(--n-l); } .ladder span:nth-child(7) { --c: var(--n-t); margin-right: -3px; }
+  .ladder sup { font-size: .55em; }
+  .ladder-note { font-size: 14px; color: var(--muted); margin: 8px 0 0; }
+
+  .marks { width: 100%; border-collapse: collapse; }
+  .marks td { padding: 8px 10px; border-bottom: 1px solid var(--rule); vertical-align: top; }
+  .marks tr:last-child td { border-bottom: 0; }
+  .marks td:first-child { width: 7.5em; white-space: nowrap; font-weight: 700; color: var(--primary-deep); }
+  [data-theme="dark"] .marks td:first-child { color: var(--primary); }
+
+  .ex { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); margin: 12px 0 4px; padding: 14px 10px 12px;
+        background: var(--bg); border: 1px solid var(--rule); border-radius: 16px; }
+  .ex div { position: relative; display: grid; justify-items: center; gap: 2px; padding: 0 4px; }
+  .ex div::before { content: ":"; position: absolute; left: -3px; top: 1px; font: 700 20px/1.2 var(--mono); color: var(--muted); }
+  .ex div.bar::before, .ex div:last-child::after { content: "|"; color: var(--ink); }
+  .ex div:last-child::after { position: absolute; right: -6px; top: 1px; font: 700 20px/1.2 var(--mono); }
+  .ex code { background: none; border: 0; font-size: 20px; font-weight: 700; padding: 0; }
+  .ex small { font-size: 12px; font-weight: 700; color: var(--teal); letter-spacing: .04em; }
+  .ex i { font-size: 14px; color: var(--muted); min-height: 1.4em; }
+  .ex-steps { margin-top: 10px; }
 
   .card { background: var(--card); border: 1px solid var(--rule); border-radius: 24px; padding: 28px;
           box-shadow: var(--shadow); margin-bottom: 20px; }
@@ -224,6 +286,28 @@
   .failed { border: 2px solid var(--primary); }
   .fail-msg { font-size: 17px; margin: 6px 0 18px; }
 
+  /* Your songs */
+  .songs-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+  .songs-count { color: var(--muted); font-size: 14px; font-weight: 600; }
+  .song-list { list-style: none; margin: 0; padding: 0; }
+  .song-list li { --c: var(--n-d); display: flex; align-items: center; gap: 6px; border-top: 1.5px solid var(--rule); }
+  .song-list li:nth-child(5n+2) { --c: var(--n-m); } .song-list li:nth-child(5n+3) { --c: var(--n-s); }
+  .song-list li:nth-child(5n+4) { --c: var(--n-l); } .song-list li:nth-child(5n+5) { --c: var(--n-f); }
+  .song-open { all: unset; box-sizing: border-box; flex: 1; min-width: 0; display: grid; grid-template-columns: 38px minmax(0, 1fr) auto;
+               align-items: center; gap: 2px 14px; padding: 12px 10px; margin: 4px 0; border-radius: 14px; cursor: pointer; }
+  .song-open:hover, .song-open:focus-visible { background: color-mix(in srgb, var(--c) 10%, var(--card)); }
+  .song-open:focus-visible { outline: 3px solid var(--primary-soft); }
+  .song-open .disc { grid-row: span 2; width: 38px; height: 38px; border-radius: 12px; display: grid; place-items: center;
+                     background: color-mix(in srgb, var(--c) 16%, var(--card)); color: var(--c); font-size: 19px; font-weight: 700; }
+  .song-open b { font-weight: 700; font-size: 17px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .song-open small { grid-column: 2; color: var(--muted); font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .song-open time { grid-column: 3; grid-row: 1 / span 2; color: var(--muted); font-size: 13px; white-space: nowrap; }
+  .song-remove { all: unset; flex: none; cursor: pointer; width: 34px; height: 34px; border-radius: 10px; display: grid; place-items: center;
+                 color: var(--muted); font-size: 20px; }
+  .song-remove:hover, .song-remove:focus-visible { background: var(--primary-soft); color: var(--primary); }
+  .songs .more { margin-top: 10px; }
+  @media (max-width: 520px) { .song-open { grid-template-columns: 38px minmax(0, 1fr); } .song-open time { display: none; } }
+
   /* Result */
   .result-head { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 10px 20px; align-items: baseline; }
   .result-head h2 { font-size: 31px; }
@@ -241,7 +325,8 @@
   .fixes p { font-size: 14px; color: var(--muted); margin: 0 0 12px; }
   .fixes .row { display: flex; flex-wrap: wrap; gap: 8px; }
   .preview-wrap { margin-top: 22px; }
-  .preview-wrap h3 { font-family: var(--display); font-weight: 700; font-size: 20px; margin: 0 0 8px; }
+  .preview-wrap h3 { font-family: var(--display); font-weight: 700; font-size: 20px; margin: 0; }
+  .preview-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 10px; }
   pre { margin: 0; padding: 18px; background: var(--bg); border: 1px solid var(--rule); border-radius: 16px; overflow: auto;
         max-height: 520px; font: 14px/1.65 var(--mono); white-space: pre; }
   .check { font-size: 14px; color: var(--muted); margin-top: 14px; }
@@ -264,7 +349,7 @@
   @media (max-width: 760px) {
     body::before { top: 76px; height: 61px; background-size: 100% 61px; background-repeat: no-repeat;
                    background-image: repeating-linear-gradient(to bottom, var(--staff) 0 2px, transparent 2px 15px); }
-    .shell { grid-template-columns: 1fr; gap: 0; padding-top: 24px; }
+    .shell { grid-template-columns: minmax(0, 1fr); gap: 0; padding-top: 24px; }
     .bg-treble { width: 300px; left: -4px; bottom: 2vh; }
     .bg-bass { width: 260px; right: -150px; top: auto; bottom: 40vh; }
     .float-note:nth-of-type(n+4) { display: none; }
@@ -343,6 +428,7 @@
         <li><b>2</b>It listens for 2 to 4 minutes</li>
         <li><b>3</b>Download the score</li>
       </ol>
+      <button type="button" class="guide-link" data-guide><span>New to tonic solfa? How to read the score</span></button>
     </header>
 
     <form class="card reveal" id="form" novalidate>
@@ -402,6 +488,16 @@
       <div class="form-error" id="formError" role="alert" hidden></div>
     </form>
 
+    <section class="card songs" id="songs" hidden aria-labelledby="songsTitle">
+      <div class="songs-head">
+        <h2 id="songsTitle">Your songs</h2>
+        <span class="songs-count" id="songsCount"></span>
+      </div>
+      <p class="sub">Scores you've made on this computer. Open one to download or print it again.</p>
+      <ul class="song-list" id="songList"></ul>
+      <button type="button" class="quiet more" id="songsMore" hidden>Show all</button>
+    </section>
+
     <section class="card" id="working" hidden aria-live="polite">
       <h2 id="workTitle">Listening to your song</h2>
       <p class="sub">Keep this page open. A 4-minute song takes about 2 to 4 minutes.</p>
@@ -447,13 +543,89 @@
       </div>
 
       <div class="preview-wrap">
-        <h3>Preview</h3>
+        <div class="preview-head">
+          <h3>Preview</h3>
+          <button type="button" class="quiet" data-guide>How to read this score</button>
+        </div>
         <pre id="preview" tabindex="0" aria-label="Score preview"></pre>
       </div>
       <p class="check">This is an automatic transcription. Sing or play each part through and check it by ear before you teach it.</p>
     </section>
   </main>
 </div>
+
+<dialog class="guide" id="guide" aria-labelledby="guideTitle">
+  <div class="guide-head">
+    <h2 id="guideTitle">How to read the score</h2>
+    <button type="button" class="guide-close" id="guideClose" aria-label="Close">×</button>
+  </div>
+  <div class="guide-body">
+    <p>Tonic solfa writes each note as a short name instead of a dot on lines. Everything on your sheet is explained here.</p>
+
+    <section>
+      <h3><b>1</b>The notes</h3>
+      <div class="ladder" id="guideLadder" aria-label="The scale and its letter names">
+        <span><b>d</b><small>C</small></span><span><b>r</b><small>D</small></span><span><b>m</b><small>E</small></span>
+        <span><b>f</b><small>F</small></span><span><b>s</b><small>G</small></span><span><b>l</b><small>A</small></span>
+        <span><b>t</b><small>B</small></span><span><b>d<sup>1</sup></b><small>C</small></span>
+      </div>
+      <p class="ladder-note" id="guideKeyNote">doh, ray, me, fah, soh, lah, te, doh. The letters show the keyboard notes when doh is C, as an example.</p>
+      <ul>
+        <li><b>Doh is home.</b> The top of the score says which note doh is, for example "Doh is B♭". Play that note on a keyboard or a piano app, sing up <code>d r m f s l t d¹</code>, then find your first note.</li>
+        <li><b>m to f and t to d¹ are close together</b> (a half step). Every other pair of neighbours is a whole step apart.</li>
+        <li><b>Higher and lower:</b> a small 1 above a note, like <code>d¹</code> or <code>r¹</code>, means the one above the top doh. A small 1 below, like <code>s₁</code> or <code>l₁</code>, means the one below doh.</li>
+        <li><b>Tenor and bass</b> are written an octave higher than they sound, as is usual in solfa. Just sing them in your normal voice.</li>
+        <li><b>Raised and lowered notes:</b> <code>fe</code>, <code>se</code> and <code>de</code> are a little above f, s and d. <code>ta</code> and <code>ma</code> are a little below t and m.</li>
+        <li><b>Minor songs:</b> "minor: lah is A" means the tune centres on lah instead of doh. Read the notes the same way.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h3><b>2</b>The rhythm</h3>
+      <table class="marks">
+        <tr><td>|</td><td>Bar line: a new bar starts.</td></tr>
+        <tr><td>:</td><td>Beat mark. Each space between marks is one beat (count 1, 2, 3…).</td></tr>
+        <tr><td>¦</td><td>The middle of a 4-beat bar, or of a 6/8 bar. Count it like any other beat.</td></tr>
+        <tr><td>-</td><td>Keep holding the note before it through this beat.</td></tr>
+        <tr><td>(empty)</td><td>A rest: be silent for that beat.</td></tr>
+        <tr><td>d.r</td><td>Two notes in one beat, half a beat each.</td></tr>
+        <tr><td>d,r.m,f</td><td>Four quick notes in one beat.</td></tr>
+        <tr><td>d.,r</td><td>Long then short in one beat: three quarters, then a quarter.</td></tr>
+        <tr><td>4 bars rest</td><td>That part is silent for 4 bars.</td></tr>
+        <tr><td>M. 80</td><td>The speed: 80 beats a minute.</td></tr>
+      </table>
+    </section>
+
+    <section>
+      <h3><b>3</b>Try it: Silent Night</h3>
+      <p style="margin:0">The tune starts like this, in 3/4 time (three beats in each bar):</p>
+      <div class="ex" aria-label="s, hold then l, s, bar line, m held for three beats">
+        <div class="bar"><code>s</code><small>1</small><i>Si–</i></div>
+        <div><code>-.l</code><small>2 &amp;</small><i>–i–</i></div>
+        <div><code>s</code><small>3</small><i>lent</i></div>
+        <div class="bar"><code>m</code><small>1</small><i>night</i></div>
+        <div><code>-</code><small>2</small><i></i></div>
+        <div><code>-</code><small>3</small><i></i></div>
+      </div>
+      <ul class="ex-steps">
+        <li>Sing <code>s</code> on beat 1.</li>
+        <li><code>-.l</code>: keep holding s for the first half of beat 2, then sing l for the second half.</li>
+        <li><code>s</code> on beat 3. Then the bar line, and <code>m</code> held for all three beats of the next bar.</li>
+        <li>Count steadily, "1 and 2 and 3 and", while you sing.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h3><b>4</b>Practise your part</h3>
+      <ul>
+        <li><b>Find your line:</b> S is soprano, A alto, T tenor, B bass. The marks line up down the page, so all four parts move together.</li>
+        <li><b>Practice audio (MIDI):</b> open it in GarageBand, MuseScore (free) or any music app that plays MIDI. Each part is its own track, named Soprano, Alto, Tenor and Bass. Mute the others to hear just yours, or slow it down.</li>
+        <li><b>On an instrument:</b> use the letters under the notes in step 1 to play each one.</li>
+        <li><b>To hand out:</b> the last page of the PDF has a short version of this guide.</li>
+      </ul>
+    </section>
+  </div>
+</dialog>
 
 <script>
 const TOKEN = "__TOKEN__";
@@ -575,6 +747,7 @@ async function start(req) {
     const res = await fetch("/api/jobs", { method: "POST", body, headers: { "X-Token": TOKEN } });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(data.detail || data.error || "Couldn't start. Reload the page and try again.");
+    setSongInAddress(data.id);
     poll(data.id);
   } catch (err) {
     fail(err.message === "Failed to fetch" ? "The Choir Solfa app isn't running. Start it again, then reload this page." : err.message);
@@ -609,7 +782,7 @@ function setProgress(stage, frac) {
 function show(which) {
   clearTimeout(timer);
   for (const id of ["form", "working", "failed", "result"]) $(id).hidden = id !== which;
-  if (which === "form") resetClimb();
+  if (which === "form") { resetClimb(); setSongInAddress(null); loadSongs(); } else $("songs").hidden = true;
   window.scrollTo({ top: 0, behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
 }
 
@@ -620,7 +793,7 @@ function fail(msg) {
 $("tryAgain").addEventListener("click", () => { show("form"); refreshReady(); $("url").focus(); });
 $("another").addEventListener("click", () => {
   $("url").value = ""; $("title").value = ""; setChoice("mode", "auto"); setChoice("meter", "auto");
-  setFile(null); show("form"); $("url").focus();
+  setFile(null); setGuideKey(null); show("form"); $("url").focus();
 });
 
 /* ---------- Result ---------- */
@@ -639,6 +812,7 @@ function showResult(id, r) {
     const b = document.createElement("b"); b.textContent = v;
     d.append(s, b); $("facts").appendChild(d);
   }
+  setGuideKey(r.letters, r.title);
   $("kindNote").textContent = r.kind === "choir"
     ? "Heard as a choir: each part is written the way it was sung."
     : "Heard as one lead singer: the tune is the soprano part, and alto, tenor and bass were written to go with it.";
@@ -683,6 +857,124 @@ function showResult(id, r) {
     .catch(() => { $("preview").textContent = "Couldn't load the preview. The PDF download still works."; });
 }
 
+/* ---------- Your songs (kept on this computer, listed by the app) ---------- */
+const SONGS_SHOWN = 6;
+let songsAll = [], songsExpanded = false;
+
+function setSongInAddress(id, push) {
+  const url = id ? `#song=${id}` : location.pathname + location.search;
+  if ((location.hash || "") === (id ? `#song=${id}` : "")) return;
+  try { history[push ? "pushState" : "replaceState"](null, "", url); } catch { /* address bar unchanged */ }
+}
+const songInAddress = () => (location.hash.match(/^#song=([0-9a-f]{32})$/) || [])[1] || null;
+
+function madeWhen(seconds) {
+  const d = new Date(seconds * 1000), now = new Date();
+  const day = (x) => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
+  const days = Math.round((day(now) - day(d)) / 86400000);
+  const clock = d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+  if (days === 0) return `Today, ${clock}`;
+  if (days === 1) return `Yesterday, ${clock}`;
+  return d.toLocaleDateString([], { day: "numeric", month: "short", year: d.getFullYear() === now.getFullYear() ? undefined : "numeric" });
+}
+
+async function loadSongs() {
+  try {
+    const res = await fetch("/api/songs");
+    if (!res.ok) throw new Error();
+    songsAll = await res.json();
+  } catch { songsAll = []; }
+  drawSongs();
+}
+
+function drawSongs() {
+  const list = $("songList");
+  list.innerHTML = "";
+  $("songs").hidden = $("form").hidden || !songsAll.length;
+  $("songsCount").textContent = songsAll.length === 1 ? "1 song" : `${songsAll.length} songs`;
+  const shown = songsExpanded ? songsAll : songsAll.slice(0, SONGS_SHOWN);
+  for (const song of shown) {
+    const li = document.createElement("li");
+    const open = document.createElement("button"); open.type = "button"; open.className = "song-open";
+    const disc = document.createElement("span"); disc.className = "disc"; disc.setAttribute("aria-hidden", "true"); disc.textContent = "♪";
+    const name = document.createElement("b"); name.textContent = song.title || "Untitled song";
+    const key = pretty(String(song.key || "").replace(/^Doh is /i, "Doh = ").replace(/\s*\(.*minor.*\)/i, ", minor"));
+    const info = document.createElement("small");
+    info.textContent = [key, song.meter, song.kind === "choir" ? "choir" : "lead singer"].filter(Boolean).join(" · ");
+    const when = document.createElement("time"); when.dateTime = new Date(song.made * 1000).toISOString(); when.textContent = madeWhen(song.made);
+    open.append(disc, name, info, when);
+    open.addEventListener("click", () => openSong(song.id, true));
+    const remove = document.createElement("button"); remove.type = "button"; remove.className = "song-remove";
+    remove.textContent = "×"; remove.title = "Remove"; remove.setAttribute("aria-label", `Remove ${song.title || "this song"}`);
+    remove.addEventListener("click", () => removeSong(song));
+    li.append(open, remove); list.appendChild(li);
+  }
+  $("songsMore").hidden = songsExpanded || songsAll.length <= SONGS_SHOWN;
+  $("songsMore").textContent = `Show all ${songsAll.length}`;
+}
+$("songsMore").addEventListener("click", () => { songsExpanded = true; drawSongs(); });
+
+async function removeSong(song) {
+  if (!confirm(`Remove “${song.title || "this song"}”? Its PDF, text and MIDI files will be deleted from this computer.`)) return;
+  try {
+    const res = await fetch(`/api/songs/${song.id}`, { method: "DELETE", headers: { "X-Token": TOKEN } });
+    if (!res.ok && res.status !== 404) {
+      const data = await res.json().catch(() => ({}));
+      throw new Error(data.detail || data.error || "Couldn't remove it.");
+    }
+  } catch (err) { alert(err.message === "Failed to fetch" ? "The Choir Solfa app isn't running." : err.message); }
+  loadSongs();
+}
+
+// Open a song from the list, or the one in the address after a reload (finished or still being made).
+async function openSong(id, push) {
+  let job;
+  try {
+    const res = await fetch(`/api/jobs/${id}`);
+    job = res.ok ? await res.json() : null;
+  } catch { job = null; }
+  if (!job || job.status === "failed") {
+    if (job && push) fail(job.error);
+    else { setSongInAddress(null); if ($("form").hidden) show("form"); }
+    return;
+  }
+  setSongInAddress(id, push);
+  lastBody = job.redo ? { ...job.redo, file: null } : null;  // uploads can't be re-run: their audio isn't kept
+  if (job.status === "done") return showResult(id, job.result);
+  show("working");
+  $("workTitle").textContent = job.title ? `Listening to “${job.title}”` : "Listening to your song";
+  started = (job.created || Date.now() / 1000) * 1000;
+  poll(id);
+}
+
+window.addEventListener("popstate", () => {
+  const id = songInAddress();
+  if (id) openSong(id); else if ($("form").hidden) show("form");
+});
+
+/* ---------- How to read the score ---------- */
+const guide = $("guide");
+const EXAMPLE_LETTERS = ["C", "D", "E", "F", "G", "A", "B"];
+function openGuide() {
+  if (typeof guide.showModal === "function") guide.showModal(); else guide.setAttribute("open", "");
+}
+function closeGuide() {
+  if (typeof guide.close === "function") guide.close(); else guide.removeAttribute("open");
+}
+document.querySelectorAll("[data-guide]").forEach((b) => b.addEventListener("click", openGuide));
+$("guideClose").addEventListener("click", closeGuide);
+guide.addEventListener("click", (e) => { if (e.target === guide) closeGuide(); });  // click outside the box
+
+// Letter names under d r m f s l t d¹: this song's key once a score is made, C as an example before.
+function setGuideKey(letters, title) {
+  const song = Array.isArray(letters) && letters.length === 7;
+  const names = song ? letters : EXAMPLE_LETTERS;
+  $("guideLadder").querySelectorAll("small").forEach((el, i) => { el.textContent = pretty(names[i % 7]); });
+  $("guideKeyNote").textContent = song
+    ? `In "${title}", doh is ${pretty(names[0])}: these are the keyboard notes for each name.`
+    : "doh, ray, me, fah, soh, lah, te, doh. The letters show the keyboard notes when doh is C, as an example.";
+}
+
 /* ---------- Light / dark ---------- */
 const THEME_KEY = "choir-solfa-theme";
 const systemDark = matchMedia("(prefers-color-scheme: dark)");
@@ -702,6 +994,7 @@ $("themeSwitch").addEventListener("click", () => {
 systemDark.addEventListener("change", (e) => { if (!savedTheme()) applyTheme(e.matches ? "dark" : "light"); });
 
 refreshReady();
+if (songInAddress()) openSong(songInAddress()); else loadSongs();
 </script>
 </body>
 </html>

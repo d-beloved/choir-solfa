@@ -5,6 +5,7 @@ reaching it) and a per-run token on every write request.
 """
 from __future__ import annotations
 
+import json
 import os
 import re
 import secrets
@@ -24,6 +25,7 @@ JOBS = HOME / "jobs"
 WEB = Path(__file__).parent / "web"
 MAX_UPLOAD = 300 * 1024 * 1024
 JOB_ID = re.compile(r"^[0-9a-f]{32}$")
+JOB_FILE = "job.json"  # how the song was asked for: link, settings, time
 
 
 class Jobs:
@@ -32,8 +34,7 @@ class Jobs:
         self.state: dict[str, dict] = {}
         self.pool = ThreadPoolExecutor(max_workers=1)  # one song at a time; the rest wait in line
 
-    def add(self, **info) -> str:
-        job_id = uuid.uuid4().hex
+    def add(self, job_id: str, **info) -> str:
         with self.lock:
             self.state[job_id] = {"id": job_id, "status": "waiting", "stage": "Waiting to start", "progress": 0.0,
                                   "created": time.time(), **info}
@@ -46,7 +47,13 @@ class Jobs:
     def get(self, job_id: str) -> dict | None:
         with self.lock:
             job = self.state.get(job_id)
-            return {k: v for k, v in job.items() if not k.startswith("_")} if job else None
+            if job:
+                return {k: v for k, v in job.items() if not k.startswith("_")}
+        return _job_from_disk(job_id)
+
+    def busy(self, job_id: str) -> bool:
+        with self.lock:
+            return self.state.get(job_id, {}).get("status") in ("waiting", "working")
 
 
 def create_app(port: int) -> FastAPI:
@@ -77,7 +84,8 @@ def create_app(port: int) -> FastAPI:
 
         if mode not in ("auto", "choir", "solo") or (meter != "auto" and meter not in METERS):
             raise HTTPException(400, "Unknown option.")
-        workdir = JOBS / uuid.uuid4().hex
+        job_id = uuid.uuid4().hex
+        workdir = JOBS / job_id  # the folder keeps the score after the server stops
         upload_name = None
         if file is not None and file.filename:
             workdir.mkdir(parents=True, exist_ok=True)
@@ -97,8 +105,12 @@ def create_app(port: int) -> FastAPI:
         else:
             raise HTTPException(400, "Paste a link to a song or choose a file.")
 
-        job_id = jobs.add(title=title or upload_name or source, source=source if is_url(source) else upload_name)
-        jobs.update(job_id, _dir=str(workdir))
+        workdir.mkdir(parents=True, exist_ok=True)
+        redo = {"url": source, "mode": mode, "meter": meter, "title": title} if is_url(source) else None
+        info = {"title": title or upload_name or source, "source": source if is_url(source) else upload_name,
+                "created": time.time(), "redo": redo}
+        (workdir / JOB_FILE).write_text(json.dumps(info, indent=2), encoding="utf-8")
+        jobs.add(job_id, **info)
         jobs.pool.submit(_run_job, jobs, job_id, source, workdir, mode, meter, title or None, upload_name)
         return {"id": job_id}
 
@@ -114,19 +126,72 @@ def create_app(port: int) -> FastAPI:
         files = {"score.pdf": "application/pdf", "score.mid": "audio/midi", "score.txt": "text/plain; charset=utf-8"}
         if name not in files:
             raise HTTPException(404)
-        with jobs.lock:
-            job = jobs.state.get(_check(job_id))
-            workdir = job and job.get("_dir")
-        path = Path(workdir) / name if workdir else None
-        if not path or not path.exists():
+        job = jobs.get(_check(job_id)) or {}
+        path = JOBS / job_id / name
+        if not path.exists():
             raise HTTPException(404, "Not ready.")
-        stem = _safe_name(job.get("result", {}).get("title") or "score")
+        stem = _safe_name((job.get("result") or {}).get("title") or "score")
         filename = f"{stem}{Path(name).suffix}"
         disposition = "attachment" if download else "inline"
         return FileResponse(path, media_type=files[name],
                             headers={"Content-Disposition": f'{disposition}; filename="{filename}"'})
 
+    @app.get("/api/songs")
+    def songs():
+        return list_songs()
+
+    @app.delete("/api/songs/{job_id}")
+    def remove_song(job_id: str):
+        folder = JOBS / _check(job_id)
+        if jobs.busy(job_id):
+            raise HTTPException(409, "This song is still being made.")
+        if not folder.is_dir():
+            raise HTTPException(404, "No such song.")
+        shutil.rmtree(folder, ignore_errors=True)
+        with jobs.lock:
+            jobs.state.pop(job_id, None)
+        return {"removed": job_id}
+
     return app
+
+
+def list_songs(limit: int = 200) -> list[dict]:
+    """Finished scores, newest first, read from the job folders on disk."""
+    found = []
+    for marker in (JOBS.glob("*/result.json") if JOBS.exists() else []):
+        job = _job_from_disk(marker.parent.name)
+        if job and job["status"] == "done":
+            r = job["result"]
+            found.append({"id": job["id"], "made": job["created"], "redo": job.get("redo"),
+                          **{k: r.get(k) for k in ("title", "key", "meter", "kind", "bars")}})
+    found.sort(key=lambda j: j["made"], reverse=True)
+    return found[:limit]
+
+
+def _read_json(path: Path) -> dict | None:
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+        return data if isinstance(data, dict) else None
+    except (OSError, ValueError):
+        return None
+
+
+def _job_from_disk(job_id: str) -> dict | None:
+    """A job the server no longer has in memory (it was restarted): rebuild it from its folder."""
+    folder = JOBS / job_id
+    if not JOB_ID.match(job_id) or not folder.is_dir():
+        return None
+    info = _read_json(folder / JOB_FILE) or {}
+    result = _read_json(folder / "result.json")
+    base = {"id": job_id, "title": info.get("title"), "source": info.get("source"), "redo": info.get("redo"),
+            "created": info.get("created") or folder.stat().st_mtime}
+    if result and (folder / "score.pdf").exists():
+        result.pop("polyphony", None)
+        if not info.get("created"):
+            base["created"] = (folder / "result.json").stat().st_mtime
+        return {**base, "status": "done", "stage": "Done", "progress": 1.0, "result": result}
+    return {**base, "status": "failed", "stage": "Stopped",
+            "error": "This song didn't finish, perhaps because the app was closed. Try it again."}
 
 
 def _check(job_id: str) -> str:
@@ -151,6 +216,7 @@ def _run_job(jobs: Jobs, job_id: str, source: str, workdir: Path, mode: str, met
         jobs.update(job_id, status="done", stage="Done", progress=1.0, result=result.to_dict())
     except Exception as e:  # report any failure on the page in plain words
         jobs.update(job_id, status="failed", stage="Stopped", error=str(e) or e.__class__.__name__)
+        shutil.rmtree(workdir, ignore_errors=True)  # nothing worth keeping, and it shouldn't be listed
     finally:
         # Keep only the score files; the audio copies are large.
         for pattern in ("upload.bin", "source.*", "vocals.wav", "mix.wav"):
