@@ -3,6 +3,7 @@ name = "choir-solfa"
 version = "0.1.0"
 description = "Turn a song (link or upload) into a tonic solfa score for soprano, alto, tenor and bass."
 requires-python = ">=3.11,<3.12"
+license = {text = "MIT"}
 dependencies = [
   "basic-pitch",
   "demucs",

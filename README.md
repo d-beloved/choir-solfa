@@ -79,3 +79,7 @@ This is automatic transcription. Treat the result as a first draft and check eve
 ```
 
 The code is under `src/choir_solfa/`. `pipeline.py` runs the steps above, `server.py` and `web/index.html` are the page, and `pdf.py` and `notation.py` lay out the score.
+
+## License
+
+MIT. See [LICENSE](LICENSE).
