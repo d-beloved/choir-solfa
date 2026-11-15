@@ -14,6 +14,9 @@ dependencies = [
   "numpy",
   # TensorFlow on Windows and torch on Intel Macs are older builds made for NumPy 1
   "numpy<2; sys_platform == 'win32' or (sys_platform == 'darwin' and platform_machine == 'x86_64')",
+  # numba 0.63 / llvmlite 0.46 and later ship no Intel Mac wheels, and building them needs LLVM.
+  "numba<0.63; sys_platform == 'darwin' and platform_machine == 'x86_64'",
+  "llvmlite<0.46; sys_platform == 'darwin' and platform_machine == 'x86_64'",
   "pretty_midi",
   "python-multipart",
   "reportlab",
