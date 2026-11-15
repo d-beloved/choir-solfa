@@ -9,13 +9,14 @@ from typing import Callable
 import numpy as np
 
 from . import audio
-from .fetch import download, is_url, use_upload
+from .fetch import get_song, is_url, use_upload
 from .harmony import harmonize
 from .midi import write_midi
 from .models import METERS, Score
 from .notation import score_text
 from .pdf import write_pdf
-from .rhythm import align_to_bars, beat_grid, choose_bar_phase, guess_meter, quantize, refine_beats, tempo_from_beats
+from .rhythm import (align_to_bars, beat_grid, choose_bar_phase, fold_fast_beats, guess_meter, quantize, refine_beats,
+                     tempo_from_beats)
 from .theory import PARTS, choose_doh_midi, detect_key, doh_pc_for, key_label
 from .voices import clean_part, merge_resung, split_choir
 
@@ -36,11 +37,14 @@ class Result:
     bars: int
     pdf: Path
     midi: Path
+    found_on: str | None = None
+    found_url: str | None = None
 
     def to_dict(self) -> dict:
         return {
             "title": self.title, "kind": self.kind, "key": self.key, "meter": self.meter,
             "tempo": self.tempo, "bars": self.bars, "pdf": self.pdf.name, "midi": self.midi.name,
+            "found_on": self.found_on, "found_url": self.found_url,
         }
 
 
@@ -54,9 +58,12 @@ def run(source: str, workdir: Path, *, mode: str = "auto", meter: str = "auto", 
 
     progress("Getting the song", 0.02)
     if is_url(source):
-        path, found_title = download(source, workdir)
+        song = get_song(source, workdir, lambda stage: progress(stage, 0.04))
+        path, found_title = song.path, song.title
+        found_on, found_url = song.found_on, song.found_url
     else:
         path, found_title = use_upload(Path(source), workdir, upload_name or Path(source).name)
+        found_on = found_url = None
     title = (title or found_title).strip() or "Untitled song"
 
     progress("Reading the audio", 0.08)
@@ -93,7 +100,8 @@ def run(source: str, workdir: Path, *, mode: str = "auto", meter: str = "auto", 
         acc_beats = audio.find_beats(acc_m)
         if len(beats) and len(acc_beats) >= 0.85 * len(beats):
             beats = acc_beats
-    beats = refine_beats(beats, [n for n in heard if n.amp >= 0.3])
+    strong = [n for n in heard if n.amp >= 0.3]
+    beats = refine_beats(fold_fast_beats(beats, strong), strong)
     guessed = meter == "auto"
     if guessed:
         meter = guess_meter(beats, [n for n in heard if n.amp >= 0.3], audio.beat_chroma(mix_m, beats))
@@ -155,7 +163,7 @@ def run(source: str, workdir: Path, *, mode: str = "auto", meter: str = "auto", 
     (workdir / "score.txt").write_text(score_text(score), encoding="utf-8")
 
     result = Result(title, kind, key_label(doh_pc, tonic_pc, key_mode), meter, int(round(tempo)),
-                    total // m.cells_per_bar, pdf_path, midi_path)
+                    total // m.cells_per_bar, pdf_path, midi_path, found_on, found_url)
     (workdir / "result.json").write_text(json.dumps({**result.to_dict(), "polyphony": round(poly, 3)}, indent=2))
     progress("Done", 1.0)
     return result

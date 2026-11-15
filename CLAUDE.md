@@ -23,3 +23,8 @@ A local tool that turns a song (link or file) into a four-part (SATB) tonic solf
 Accuracy can only be judged by ear or against a known score. Silent Night SATB on YouTube (CZmC4qqL_Rg) is a useful check:
 - It has a piano intro and then voices only.
 - It should come out in 3/4 with doh B♭, and the soprano should open "s :-.l :s | m :- :-".
+
+## Spotify
+- Spotify audio is DRM-protected; yt-dlp refuses it. `fetch.get_song` reads title, artist and length from the public track page (og:title, music:musician_description, music:duration) and finds the same recording on YouTube (`find_on_youtube`, within 8 s).
+- Fetch the track page with the plain `choir-solfa/0.1` user agent: a browser user agent gets a page without those meta tags.
+- `Result.found_on` / `found_url` name the YouTube video used; the page shows them.

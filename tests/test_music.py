@@ -4,7 +4,7 @@ from choir_solfa.harmony import CHORDS, choose_chords, harmonize
 from choir_solfa.models import METERS, QNote, Score
 from choir_solfa.notation import bar_text, cell_states, render_part, render_pulse, runs_text
 from choir_solfa.pdf import write_pdf
-from choir_solfa.rhythm import align_to_bars, beat_grid, choose_bar_phase, quantize
+from choir_solfa.rhythm import align_to_bars, beat_grid, choose_bar_phase, fold_fast_beats, quantize
 from choir_solfa.theory import choose_doh_midi, detect_key, doh_pc_for, solfa
 from choir_solfa.voices import split_choir
 
@@ -191,3 +191,14 @@ def test_merge_resung_joins_split_notes_without_an_attack():
     assert [(n.start, n.end) for n in merged] == [(0, 6), (8, 10)]
     kept = merge_resung(notes, onset_cells={0, 2, 8})
     assert len(kept) == 3
+
+
+def test_fold_fast_beats_keeps_the_half_the_notes_start_on():
+    from choir_solfa.models import Note
+    fast = np.arange(0, 20, 0.2)  # 300 a minute
+    notes = [Note(pitch=60, start=0.2 + 0.8 * k, end=0.2 + 0.8 * k + 0.6, amp=0.8) for k in range(24)]
+    beats = fold_fast_beats(fast, notes)
+    assert 60 / np.median(np.diff(beats)) <= 160
+    assert np.isclose(beats[0], 0.2)
+    slow = np.arange(0, 20, 0.6)
+    assert np.array_equal(fold_fast_beats(slow, notes), slow)

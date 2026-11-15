@@ -50,6 +50,8 @@ def _make(args) -> int:
         shutil.copyfile(result.pdf, out)
         shutil.copyfile(result.midi, out.with_suffix(".mid"))
     print(f"{result.title}: {result.key}, {result.meter}, M. {result.tempo}, {result.bars} bars ({result.kind})")
+    if result.found_on:
+        print(f"Audio taken from: {result.found_on} ({result.found_url})")
     print(f"Saved {out} and {out.with_suffix('.mid')}")
     return 0
 

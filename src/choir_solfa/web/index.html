@@ -3,210 +3,536 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
 <title>Choir Solfa</title>
 <style>
   :root {
-    --bg: #f7f5f0; --card: #ffffff; --ink: #1f1d1a; --muted: #6b665d; --line: #e3ded4;
-    --accent: #7a3e1d; --accent-ink: #ffffff; --soft: #f1e8df; --bad: #a32020; --good: #2d6a3e;
+    --paper: #f6f1e7; --paper-2: #efe7d8; --card: #fbf8f2; --ink: #221c16; --muted: #6f655a; --rule: #dcd2c0;
+    --rubric: #9b2c1f; --rubric-ink: #fffaf3; --rubric-soft: #f3e1d6; --good: #2f6b45; --good-soft: #e1eee3;
+    --warn: #8a5a00; --warn-soft: #f6ead0; --shadow: 0 1px 0 rgba(60, 40, 20, .04), 0 12px 32px -18px rgba(60, 40, 20, .35);
+    --serif: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif;
+    --sans: "Avenir Next", Avenir, "Segoe UI", system-ui, sans-serif;
+    --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
   }
   @media (prefers-color-scheme: dark) {
     :root {
-      --bg: #171614; --card: #201f1c; --ink: #ece8e1; --muted: #a39d92; --line: #36332e;
-      --accent: #d98c5f; --accent-ink: #1b120c; --soft: #2c2520; --bad: #ef7d7d; --good: #7cc48f;
+      --paper: #15120e; --paper-2: #1d1914; --card: #1f1b16; --ink: #efe7d8; --muted: #a89d8d; --rule: #3a332a;
+      --rubric: #e27a64; --rubric-ink: #1a0f0b; --rubric-soft: #3a231c; --good: #86c79a; --good-soft: #1f2e23;
+      --warn: #e5b45a; --warn-soft: #33281a; --shadow: 0 1px 0 rgba(0, 0, 0, .3), 0 16px 36px -20px rgba(0, 0, 0, .8);
     }
   }
   * { box-sizing: border-box; }
-  body { margin: 0; background: var(--bg); color: var(--ink);
-         font: 16px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
-  main { max-width: 760px; margin: 0 auto; padding: 40px 16px 64px; }
-  h1 { font-size: 28px; margin: 0 0 4px; letter-spacing: -0.01em; }
-  .lead { color: var(--muted); margin: 0 0 28px; }
-  .card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 22px; margin-bottom: 18px; }
-  label { display: block; font-weight: 600; font-size: 14px; margin-bottom: 6px; }
-  input[type=url], input[type=text], select {
-    width: 100%; font: inherit; color: var(--ink); background: var(--bg); border: 1px solid var(--line);
-    border-radius: 9px; padding: 10px 12px; }
-  input:focus, select:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
-  .or { text-align: center; color: var(--muted); font-size: 13px; margin: 14px 0; }
-  .drop { border: 1.5px dashed var(--line); border-radius: 10px; padding: 22px; text-align: center; cursor: pointer;
-          color: var(--muted); transition: background .15s, border-color .15s; }
-  .drop.over, .drop:hover { background: var(--soft); border-color: var(--accent); }
-  .drop strong { color: var(--ink); }
-  .row { display: grid; grid-template-columns: 1.4fr 0.8fr 1.4fr; gap: 12px; margin-top: 18px; }
-  @media (max-width: 600px) { .row { grid-template-columns: 1fr; } }
-  .hint { color: var(--muted); font-size: 13px; margin-top: 6px; }
-  button, .btn {
-    font: inherit; font-weight: 600; border: 0; border-radius: 10px; padding: 11px 18px; cursor: pointer;
-    background: var(--accent); color: var(--accent-ink); text-decoration: none; display: inline-block; }
-  button:disabled { opacity: .5; cursor: default; }
-  .btn.secondary { background: var(--soft); color: var(--ink); }
-  .actions { margin-top: 20px; display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
-  .bar { height: 8px; background: var(--soft); border-radius: 99px; overflow: hidden; margin: 12px 0 6px; }
-  .bar > div { height: 100%; width: 0; background: var(--accent); transition: width .4s; }
-  .stage { font-weight: 600; }
-  .error { color: var(--bad); font-weight: 600; }
-  .facts { display: flex; gap: 8px; flex-wrap: wrap; margin: 6px 0 4px; }
-  .fact { background: var(--soft); border-radius: 99px; padding: 3px 11px; font-size: 14px; }
-  pre { margin: 16px 0 0; padding: 16px; background: var(--bg); border: 1px solid var(--line); border-radius: 10px;
-        overflow-x: auto; font: 14px/1.6 ui-monospace, "SF Mono", Menlo, monospace; white-space: pre; }
-  .note { font-size: 14px; color: var(--muted); margin-top: 10px; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0; min-height: 100vh; color: var(--ink); font: 17px/1.55 var(--sans);
+    background: radial-gradient(1200px 500px at 85% -10%, var(--paper-2), transparent 70%), var(--paper);
+  }
+  a { color: var(--rubric); }
+  .shell { max-width: 1040px; margin: 0 auto; padding: 48px 16px 80px; display: grid;
+           grid-template-columns: 112px minmax(0, 1fr); gap: 40px; }
+
+  /* The modulator: the solfa ladder from the teaching wall, spaced in tones and semitones. */
+  .modulator { position: sticky; top: 48px; align-self: start; display: flex; flex-direction: column-reverse;
+               align-items: center; padding: 18px 0; border-left: 2px solid var(--rubric); border-right: 2px solid var(--rubric);
+               font-family: var(--serif); font-size: 26px; line-height: 1; user-select: none; }
+  .modulator span { display: block; width: 100%; text-align: center; color: var(--muted); opacity: .55;
+                    transition: color .5s, opacity .5s, transform .5s; }
+  .modulator span.lit { color: var(--rubric); opacity: 1; }
+  .modulator span.now { color: var(--rubric); opacity: 1; transform: scale(1.25); font-style: italic; }
+  /* Gaps sit under the upper note of each step (the column runs bottom to top). */
+  .modulator .tone { margin-bottom: 34px; }
+  .modulator .semi { margin-bottom: 10px; }
+  .modulator sup { font-size: .5em; }
+
+  header h1 { font-family: var(--serif); font-weight: 600; font-size: clamp(40px, 6vw, 60px); line-height: 1;
+              letter-spacing: -.01em; margin: 0; }
+  header h1 em { color: var(--rubric); font-weight: 500; }
+  header p { font-size: 19px; color: var(--muted); margin: 14px 0 0; max-width: 34em; }
+  .steps { list-style: none; display: flex; flex-wrap: wrap; gap: 8px 22px; padding: 0; margin: 22px 0 30px;
+           font-size: 14px; color: var(--muted); }
+  .steps b { font-family: var(--serif); color: var(--rubric); font-size: 17px; margin-right: 6px; }
+
+  .card { background: var(--card); border: 1px solid var(--rule); border-radius: 18px; padding: 28px;
+          box-shadow: var(--shadow); margin-bottom: 20px; }
+  .card h2 { font-family: var(--serif); font-weight: 600; font-size: 24px; margin: 0 0 4px; }
+  .sub { color: var(--muted); margin: 0 0 18px; font-size: 15px; }
+
+  .field-label { display: block; font-weight: 600; font-size: 15px; margin-bottom: 8px; }
+  input[type=url], input[type=text] {
+    width: 100%; font: inherit; font-size: 18px; color: var(--ink); background: var(--paper);
+    border: 1.5px solid var(--rule); border-radius: 12px; padding: 15px 16px; transition: border-color .15s, box-shadow .15s; }
+  input::placeholder { color: var(--muted); opacity: .8; }
+  input:focus { outline: none; border-color: var(--rubric); box-shadow: 0 0 0 4px var(--rubric-soft); }
+  .badge { display: inline-flex; align-items: center; gap: 6px; margin-top: 10px; padding: 4px 12px 4px 10px;
+           border-radius: 99px; font-size: 14px; font-weight: 600; }
+  .badge.ok { background: var(--good-soft); color: var(--good); }
+  .badge.warn { background: var(--warn-soft); color: var(--warn); }
+  .badge svg { width: 15px; height: 15px; flex: none; }
+  .supported { font-size: 14px; color: var(--muted); margin-top: 10px; }
+
+  .or { display: flex; align-items: center; gap: 14px; color: var(--muted); font-size: 14px; margin: 22px 0; }
+  .or::before, .or::after { content: ""; flex: 1; height: 1px; background: var(--rule); }
+
+  .file-row { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 16px; }
+  .file-hint { color: var(--muted); font-size: 14px; }
+  .chip { display: inline-flex; align-items: center; gap: 10px; background: var(--paper-2); border: 1px solid var(--rule);
+          border-radius: 10px; padding: 8px 8px 8px 14px; font-weight: 600; max-width: 100%; }
+  .chip span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .chip button { all: unset; cursor: pointer; width: 26px; height: 26px; border-radius: 7px; display: grid; place-items: center;
+                 color: var(--muted); font-size: 18px; }
+  .chip button:hover, .chip button:focus-visible { background: var(--rubric-soft); color: var(--rubric); }
+
+  details.settings { margin-top: 26px; border-top: 1px solid var(--rule); padding-top: 16px; }
+  details.settings summary { cursor: pointer; font-weight: 600; font-size: 15px; list-style: none; display: flex; align-items: center; gap: 8px; }
+  details.settings summary::-webkit-details-marker { display: none; }
+  details.settings summary::before { content: "›"; display: inline-block; font-size: 20px; line-height: 1; color: var(--rubric);
+                                     transition: transform .2s; }
+  details.settings[open] summary::before { transform: rotate(90deg); }
+  details.settings summary small { font-weight: 400; color: var(--muted); }
+  .setting { margin-top: 18px; }
+  .seg { display: flex; flex-wrap: wrap; gap: 8px; }
+  .seg input { position: absolute; opacity: 0; pointer-events: none; }
+  .seg label { cursor: pointer; padding: 9px 15px; border-radius: 10px; border: 1.5px solid var(--rule); background: var(--paper);
+               font-size: 15px; transition: border-color .15s, background .15s; }
+  .seg label:hover { border-color: var(--muted); }
+  .seg input:checked + label { border-color: var(--rubric); background: var(--rubric-soft); color: var(--ink); font-weight: 600; }
+  .seg input:focus-visible + label { box-shadow: 0 0 0 4px var(--rubric-soft); }
+  .setting .help { font-size: 13px; color: var(--muted); margin-top: 6px; }
+
+  .go-row { display: flex; flex-wrap: wrap; align-items: center; gap: 14px 18px; margin-top: 28px; }
+  button.primary, a.primary {
+    font: inherit; font-size: 18px; font-weight: 600; border: 0; border-radius: 12px; padding: 15px 28px; cursor: pointer;
+    background: var(--rubric); color: var(--rubric-ink); text-decoration: none; display: inline-flex; align-items: center; gap: 10px;
+    transition: transform .1s, filter .15s; }
+  button.primary:hover, a.primary:hover { filter: brightness(1.08); }
+  button.primary:active, a.primary:active { transform: translateY(1px); }
+  button.primary:disabled { opacity: .45; cursor: not-allowed; filter: none; }
+  button.quiet, a.quiet {
+    font: inherit; font-size: 15px; font-weight: 600; border: 1.5px solid var(--rule); background: transparent; color: var(--ink);
+    border-radius: 11px; padding: 10px 16px; cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; gap: 8px; }
+  button.quiet:hover, a.quiet:hover { border-color: var(--rubric); color: var(--rubric); }
+  :is(button, a):focus-visible { outline: 3px solid var(--rubric); outline-offset: 2px; }
+  .go-hint { color: var(--muted); font-size: 14px; }
+  .form-error { color: var(--rubric); font-weight: 600; margin-top: 14px; }
+
+  /* Working */
+  .stages { list-style: none; padding: 0; margin: 18px 0 0; display: grid; gap: 4px; }
+  .stages li { display: grid; grid-template-columns: 28px 1fr; align-items: center; padding: 8px 0; color: var(--muted); }
+  .stages li .dot { width: 14px; height: 14px; border-radius: 50%; border: 2px solid var(--rule); }
+  .stages li.done { color: var(--ink); }
+  .stages li.done .dot { background: var(--good); border-color: var(--good); }
+  .stages li.now { color: var(--ink); font-weight: 600; }
+  .stages li.now .dot { border-color: var(--rubric); border-top-color: transparent; animation: spin 1s linear infinite; }
+  .now-detail { margin: 16px 0 0; padding: 12px 14px; background: var(--paper-2); border-radius: 10px; font-size: 15px; }
+  .elapsed { color: var(--muted); font-size: 14px; margin-top: 12px; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .failed { border-color: var(--rubric); }
+  .fail-msg { font-size: 17px; margin: 6px 0 18px; }
+
+  /* Result */
+  .result-head { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 10px 20px; align-items: baseline; }
+  .result-head h2 { font-size: 30px; }
+  .facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 1px; background: var(--rule);
+           border: 1px solid var(--rule); border-radius: 12px; overflow: hidden; margin: 18px 0; }
+  .fact { background: var(--card); padding: 12px 14px; }
+  .fact small { display: block; font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
+  .fact b { font-family: var(--serif); font-size: 20px; font-weight: 600; }
+  .kind-note, .source-note { font-size: 15px; margin: 0 0 10px; }
+  .source-note { background: var(--paper-2); border-radius: 10px; padding: 12px 14px; }
+  .downloads { display: flex; flex-wrap: wrap; gap: 10px; margin: 20px 0 6px; align-items: center; }
+  .fixes { margin-top: 22px; padding-top: 18px; border-top: 1px solid var(--rule); }
+  .fixes h3 { font-size: 15px; margin: 0 0 4px; }
+  .fixes p { font-size: 14px; color: var(--muted); margin: 0 0 12px; }
+  .fixes .row { display: flex; flex-wrap: wrap; gap: 8px; }
+  .preview-wrap { margin-top: 22px; }
+  .preview-wrap h3 { font-family: var(--serif); font-weight: 600; font-size: 20px; margin: 0 0 8px; }
+  pre { margin: 0; padding: 18px; background: var(--paper); border: 1px solid var(--rule); border-radius: 12px; overflow: auto;
+        max-height: 520px; font: 14px/1.65 var(--mono); white-space: pre; }
+  .check { font-size: 14px; color: var(--muted); margin-top: 14px; }
+
+  /* Drop anywhere */
+  .drop-veil { position: fixed; inset: 0; z-index: 10; display: none; place-items: center;
+               background: color-mix(in srgb, var(--paper) 88%, transparent); border: 3px dashed var(--rubric); }
+  .drop-veil div { font-family: var(--serif); font-size: 34px; color: var(--rubric); }
+  body.dropping .drop-veil { display: grid; }
+
   [hidden] { display: none !important; }
+  .reveal { animation: rise .55s cubic-bezier(.2, .7, .2, 1) both; }
+  .reveal + .reveal { animation-delay: .08s; }
+  @keyframes rise { from { opacity: 0; transform: translateY(10px); } }
+  @media (prefers-reduced-motion: reduce) {
+    .reveal, .stages li.now .dot { animation: none; }
+    .modulator span { transition: none; }
+  }
+
+  @media (max-width: 760px) {
+    .shell { grid-template-columns: 1fr; gap: 0; padding-top: 28px; }
+    .modulator { position: static; flex-direction: row; justify-content: space-between; border: 0;
+                 border-top: 2px solid var(--rubric); border-bottom: 2px solid var(--rubric); padding: 10px 6px; margin-bottom: 26px; font-size: 20px; }
+    .modulator .tone, .modulator .semi { margin-bottom: 0; }
+    .card { padding: 22px 18px; }
+  }
 </style>
 </head>
 <body>
-<main>
-  <h1>Choir Solfa</h1>
-  <p class="lead">Give it a song. Get tonic solfa for soprano, alto, tenor and bass.</p>
+<div class="drop-veil" aria-hidden="true"><div>Drop the song here</div></div>
 
-  <form class="card" id="form">
-    <label for="url">Link to the song</label>
-    <input type="url" id="url" name="url" placeholder="https://www.youtube.com/watch?v=…" autocomplete="off">
-    <div class="or">or</div>
-    <div class="drop" id="drop" tabindex="0" role="button">
-      <strong>Choose a file</strong> or drop it here<br>
-      <span id="fileName">MP3, WAV, M4A, or a video file</span>
-    </div>
-    <input type="file" id="file" accept="audio/*,video/*" hidden>
+<div class="shell">
+  <aside class="modulator" id="modulator" aria-hidden="true">
+    <span>d</span><span class="tone">r</span><span class="tone">m</span><span class="semi">f</span>
+    <span class="tone">s</span><span class="tone">l</span><span class="tone">t</span><span class="semi">d<sup>1</sup></span>
+  </aside>
 
-    <div class="row">
-      <div>
-        <label for="mode">Song type</label>
-        <select id="mode" name="mode">
-          <option value="auto">Work it out for me</option>
-          <option value="choir">A choir sings the parts</option>
-          <option value="solo">One lead singer: arrange parts</option>
-        </select>
+  <main>
+    <header class="reveal">
+      <h1>Choir <em>Solfa</em></h1>
+      <p>Turn a recording into tonic solfa for soprano, alto, tenor and bass, ready to print.</p>
+      <ol class="steps">
+        <li><b>1</b>Give it a song</li>
+        <li><b>2</b>It listens for 2 to 4 minutes</li>
+        <li><b>3</b>Download the score</li>
+      </ol>
+    </header>
+
+    <form class="card reveal" id="form" novalidate>
+      <h2>Your song</h2>
+      <p class="sub">Paste a link, or use a recording on this computer.</p>
+
+      <label class="field-label" for="url">Link to the song</label>
+      <input type="url" id="url" inputmode="url" autocomplete="off" spellcheck="false"
+             placeholder="Paste a Spotify or YouTube link" aria-describedby="linkStatus supported">
+      <div id="linkStatus" aria-live="polite"></div>
+      <div class="supported" id="supported">In Spotify: <b>Share → Copy song link</b>. YouTube and most music sites work too.</div>
+
+      <div class="or">or</div>
+
+      <div class="file-row">
+        <button type="button" class="quiet" id="pickFile">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M8 11V2m0 0L4.5 5.5M8 2l3.5 3.5M2.5 10.5v2a1 1 0 0 0 1 1h9a1 1 0 0 0 1-1v-2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          Choose an audio file
+        </button>
+        <span class="file-hint" id="fileHint">MP3, WAV, M4A or a video. You can also drag it onto this page.</span>
+        <span class="chip" id="fileChip" hidden><span id="fileName"></span>
+          <button type="button" id="clearFile" aria-label="Remove this file">×</button></span>
       </div>
-      <div>
-        <label for="meter">Time</label>
-        <select id="meter" name="meter">
-          <option value="auto">Work it out</option><option>4/4</option><option>3/4</option><option>2/4</option><option>6/8</option>
-        </select>
-      </div>
-      <div>
-        <label for="title">Title (optional)</label>
-        <input type="text" id="title" name="title" placeholder="Taken from the song">
-      </div>
-    </div>
-    <div class="actions">
-      <button type="submit" id="go">Make the solfa</button>
-      <span class="hint">A 4-minute song takes about 2 to 4 minutes.</span>
-    </div>
-  </form>
+      <input type="file" id="file" accept="audio/*,video/*,.mp3,.wav,.m4a,.aac,.flac,.ogg,.opus,.webm,.mp4,.mov" hidden>
 
-  <section class="card" id="progress" hidden>
-    <div class="stage" id="stage">Starting</div>
-    <div class="bar"><div id="fill"></div></div>
-    <div class="hint" id="elapsed"></div>
-    <div class="error" id="error" hidden></div>
-  </section>
+      <details class="settings" id="settings">
+        <summary>Settings <small>(optional: these are worked out for you)</small></summary>
+        <div class="setting">
+          <div class="field-label" id="modeLabel">Who is singing?</div>
+          <div class="seg" role="radiogroup" aria-labelledby="modeLabel">
+            <input type="radio" name="mode" id="mode-auto" value="auto" checked><label for="mode-auto">Work it out</label>
+            <input type="radio" name="mode" id="mode-choir" value="choir"><label for="mode-choir">A choir singing parts</label>
+            <input type="radio" name="mode" id="mode-solo" value="solo"><label for="mode-solo">One lead singer</label>
+          </div>
+          <div class="help">With one lead singer, the tune becomes the soprano part and alto, tenor and bass are written to go with it.</div>
+        </div>
+        <div class="setting">
+          <div class="field-label" id="meterLabel">Time</div>
+          <div class="seg" role="radiogroup" aria-labelledby="meterLabel">
+            <input type="radio" name="meter" id="meter-auto" value="auto" checked><label for="meter-auto">Work it out</label>
+            <input type="radio" name="meter" id="meter-44" value="4/4"><label for="meter-44">4/4</label>
+            <input type="radio" name="meter" id="meter-34" value="3/4"><label for="meter-34">3/4</label>
+            <input type="radio" name="meter" id="meter-68" value="6/8"><label for="meter-68">6/8</label>
+            <input type="radio" name="meter" id="meter-24" value="2/4"><label for="meter-24">2/4</label>
+          </div>
+        </div>
+        <div class="setting">
+          <label class="field-label" for="title">Title on the score</label>
+          <input type="text" id="title" placeholder="Taken from the song">
+        </div>
+      </details>
 
-  <section class="card" id="result" hidden>
-    <h2 id="rTitle" style="margin:0 0 6px;font-size:21px"></h2>
-    <div class="facts" id="facts"></div>
-    <p class="note" id="kindNote"></p>
-    <div class="actions">
-      <a class="btn" id="dlPdf" href="#">Download PDF</a>
-      <a class="btn secondary" id="dlTxt" href="#">Text version</a>
-      <a class="btn secondary" id="dlMid" href="#">MIDI (to practise)</a>
-    </div>
-    <pre id="preview" aria-label="Score preview"></pre>
-    <p class="note">This is an automatic transcription. Check each part by ear before you teach it.</p>
-  </section>
-</main>
+      <div class="go-row">
+        <button type="submit" class="primary" id="go" disabled>Make the solfa</button>
+        <span class="go-hint" id="goHint">Paste a link or choose a file to begin.</span>
+      </div>
+      <div class="form-error" id="formError" role="alert" hidden></div>
+    </form>
+
+    <section class="card" id="working" hidden aria-live="polite">
+      <h2 id="workTitle">Listening to your song</h2>
+      <p class="sub">Keep this page open. A 4-minute song takes about 2 to 4 minutes.</p>
+      <ol class="stages" id="stages">
+        <li data-from="0"><span class="dot"></span>Getting the song</li>
+        <li data-from="0.1"><span class="dot"></span>Separating the voices from the instruments</li>
+        <li data-from="0.62"><span class="dot"></span>Listening for every note</li>
+        <li data-from="0.74"><span class="dot"></span>Finding the beat, the key and the parts</li>
+        <li data-from="0.95"><span class="dot"></span>Making the PDF</li>
+      </ol>
+      <div class="now-detail" id="nowDetail">Starting…</div>
+      <div class="elapsed" id="elapsed"></div>
+    </section>
+
+    <section class="card failed" id="failed" hidden role="alert">
+      <h2>That didn't work</h2>
+      <p class="fail-msg" id="failMsg"></p>
+      <button type="button" class="primary" id="tryAgain">Try again</button>
+    </section>
+
+    <section class="card" id="result" hidden>
+      <div class="result-head">
+        <h2 id="rTitle"></h2>
+        <button type="button" class="quiet" id="another">Make another</button>
+      </div>
+      <div class="facts" id="facts"></div>
+      <p class="kind-note" id="kindNote"></p>
+      <p class="source-note" id="sourceNote" hidden></p>
+
+      <div class="downloads">
+        <a class="primary" id="dlPdf" href="#">
+          <svg width="18" height="18" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M8 2v9m0 0L4.5 7.5M8 11l3.5-3.5M2.5 13.5h11" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          Download the score (PDF)</a>
+        <a class="quiet" id="openPdf" href="#" target="_blank" rel="noopener">Open to print</a>
+        <a class="quiet" id="dlMid" href="#" title="Plays each part so singers can practise">Practice audio (MIDI)</a>
+        <a class="quiet" id="dlTxt" href="#" title="Plain text to paste into a message">Text version</a>
+      </div>
+
+      <div class="fixes" id="fixes">
+        <h3>Doesn't look right?</h3>
+        <p>Choose what's true and it will be made again.</p>
+        <div class="row" id="fixRow"></div>
+      </div>
+
+      <div class="preview-wrap">
+        <h3>Preview</h3>
+        <pre id="preview" tabindex="0" aria-label="Score preview"></pre>
+      </div>
+      <p class="check">This is an automatic transcription. Sing or play each part through and check it by ear before you teach it.</p>
+    </section>
+  </main>
+</div>
 
 <script>
 const TOKEN = "__TOKEN__";
 const $ = (id) => document.getElementById(id);
-let chosenFile = null, timer = null, started = 0;
+let chosenFile = null, timer = null, started = 0, lastBody = null;
 
-const drop = $("drop"), fileInput = $("file");
-drop.addEventListener("click", () => fileInput.click());
-drop.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); fileInput.click(); } });
-fileInput.addEventListener("change", () => pick(fileInput.files[0]));
-["dragenter", "dragover"].forEach((t) => drop.addEventListener(t, (e) => { e.preventDefault(); drop.classList.add("over"); }));
-["dragleave", "drop"].forEach((t) => drop.addEventListener(t, (e) => { e.preventDefault(); drop.classList.remove("over"); }));
-drop.addEventListener("drop", (e) => pick(e.dataTransfer.files[0]));
-$("url").addEventListener("input", () => { if ($("url").value) pick(null); });
-
-function pick(f) {
-  chosenFile = f || null;
-  $("fileName").textContent = f ? f.name : "MP3, WAV, M4A, or a video file";
-  if (f) $("url").value = "";
+/* ---------- Link recognition ---------- */
+function describeLink(text) {
+  const t = text.trim();
+  if (!t) return null;
+  if (/^spotify:track:[A-Za-z0-9]{22}$/.test(t)) return { ok: true, label: "Spotify song" };
+  if (/^spotify:/.test(t)) return { ok: false, label: "That Spotify link isn't a single song. Open one song, then Share → Copy song link." };
+  let u;
+  try { u = new URL(t); } catch { return { ok: false, label: "That doesn't look like a link. It should start with https://" }; }
+  if (!/^https?:$/.test(u.protocol)) return { ok: false, label: "That doesn't look like a web link." };
+  const host = u.hostname.replace(/^www\./, "");
+  const path = u.pathname;
+  if (host === "open.spotify.com" || host === "play.spotify.com") {
+    const m = path.match(/^\/(?:intl-[a-z-]+\/)?(?:embed\/)?(track|album|playlist|artist|episode|show)\//);
+    if (!m) return { ok: false, label: "That Spotify link isn't a song. Open the song, then Share → Copy song link." };
+    if (m[1] === "track") return { ok: true, label: "Spotify song" };
+    const what = { album: "an album", playlist: "a playlist", artist: "an artist page", episode: "a podcast", show: "a podcast" }[m[1]];
+    return { ok: false, label: `That's ${what}. Open one song, then Share → Copy song link.` };
+  }
+  if (host === "spotify.link" || host === "spoti.fi") return { ok: true, label: "Spotify link" };
+  if (host === "youtu.be" || host.endsWith("youtube.com")) {
+    if (u.searchParams.get("list") && !u.searchParams.get("v") && host !== "youtu.be")
+      return { ok: false, label: "That's a YouTube playlist. Open one song and copy its link." };
+    return { ok: true, label: "YouTube video" };
+  }
+  if (host.endsWith("soundcloud.com")) return { ok: true, label: "SoundCloud track" };
+  return { ok: true, label: "Link: it will try to get the song from here" };
 }
 
-$("form").addEventListener("submit", async (e) => {
-  e.preventDefault();
-  const url = $("url").value.trim();
-  if (!url && !chosenFile) { showError("Paste a link to a song or choose a file."); return; }
-  const body = new FormData();
-  body.append("mode", $("mode").value);
-  body.append("meter", $("meter").value);
-  body.append("title", $("title").value.trim());
-  if (chosenFile) body.append("file", chosenFile); else body.append("url", url);
+const OK_ICON = '<svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3.5 8.5l3 3 6-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+const WARN_ICON = '<svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M8 4.5v4.5M8 11.5v.01" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
 
-  $("go").disabled = true;
-  $("result").hidden = true;
-  $("progress").hidden = false;
-  $("error").hidden = true;
-  setStage("Sending the song", 0);
-  started = Date.now();
-  try {
-    const res = await fetch("/api/jobs", { method: "POST", body, headers: { "X-Token": TOKEN } });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.detail || data.error || "Could not start.");
-    poll(data.id);
-  } catch (err) { showError(err.message); }
+function refreshReady() {
+  const link = describeLink($("url").value);
+  const status = $("linkStatus");
+  status.innerHTML = "";
+  if (link) {
+    const b = document.createElement("span");
+    b.className = "badge " + (link.ok ? "ok" : "warn");
+    b.innerHTML = link.ok ? OK_ICON : WARN_ICON;
+    b.append(link.label);
+    status.appendChild(b);
+  }
+  $("supported").hidden = !!link;
+  const ready = !!chosenFile || !!(link && link.ok);
+  $("go").disabled = !ready;
+  $("goHint").textContent = ready ? "Takes about 2 to 4 minutes. Keep this page open." : "Paste a link or choose a file to begin.";
+  $("formError").hidden = true;
+}
+
+$("url").addEventListener("input", () => { if ($("url").value.trim() && chosenFile) setFile(null); refreshReady(); });
+
+/* ---------- Files ---------- */
+const AUDIO_EXT = /\.(mp3|wav|m4a|aac|flac|ogg|oga|opus|webm|mp4|m4v|mov|aiff?|wma)$/i;
+function setFile(f) {
+  if (f && !(f.type.startsWith("audio/") || f.type.startsWith("video/") || AUDIO_EXT.test(f.name))) {
+    showFormError(`“${f.name}” isn't an audio or video file.`);
+    return;
+  }
+  chosenFile = f || null;
+  $("fileChip").hidden = !f;
+  $("fileHint").hidden = !!f;
+  $("fileName").textContent = f ? f.name : "";
+  if (f) $("url").value = "";
+  $("file").value = "";
+  refreshReady();
+}
+$("pickFile").addEventListener("click", () => $("file").click());
+$("file").addEventListener("change", () => setFile($("file").files[0]));
+$("clearFile").addEventListener("click", () => setFile(null));
+
+let dragDepth = 0;
+const hasFiles = (e) => [...(e.dataTransfer?.types || [])].includes("Files");
+window.addEventListener("dragenter", (e) => { if (hasFiles(e)) { dragDepth++; document.body.classList.add("dropping"); } });
+window.addEventListener("dragleave", () => { dragDepth = Math.max(0, dragDepth - 1); if (!dragDepth) document.body.classList.remove("dropping"); });
+window.addEventListener("dragover", (e) => { if (hasFiles(e)) e.preventDefault(); });
+window.addEventListener("drop", (e) => {
+  e.preventDefault(); dragDepth = 0; document.body.classList.remove("dropping");
+  if (!$("form").hidden && e.dataTransfer.files[0]) setFile(e.dataTransfer.files[0]);
 });
 
-function setStage(text, frac) {
-  $("stage").textContent = text;
-  $("fill").style.width = Math.round(frac * 100) + "%";
-  const s = Math.round((Date.now() - started) / 1000);
-  $("elapsed").textContent = started ? `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")} so far` : "";
-}
+function showFormError(msg) { $("formError").textContent = msg; $("formError").hidden = false; }
 
-function showError(msg) {
-  $("progress").hidden = false;
-  $("error").hidden = false;
-  $("error").textContent = msg;
-  $("stage").textContent = "Stopped";
-  $("go").disabled = false;
-  clearTimeout(timer);
+/* ---------- Modulator as progress ---------- */
+const rungs = [...$("modulator").children];
+function climb(frac, done) {
+  const at = done ? rungs.length - 1 : Math.min(rungs.length - 1, Math.floor(frac * rungs.length));
+  rungs.forEach((r, i) => { r.classList.toggle("lit", i < at || (done && i <= at)); r.classList.toggle("now", !done && i === at); });
+}
+const resetClimb = () => rungs.forEach((r) => r.classList.remove("lit", "now"));
+
+/* ---------- Submit and follow the job ---------- */
+const choice = (name) => document.querySelector(`input[name=${name}]:checked`).value;
+function setChoice(name, value) { const el = document.querySelector(`input[name=${name}][value="${value}"]`); if (el) el.checked = true; }
+
+$("form").addEventListener("submit", (e) => {
+  e.preventDefault();
+  const link = describeLink($("url").value);
+  if (!chosenFile && !(link && link.ok)) { showFormError(link ? link.label : "Paste a link or choose a file first."); return; }
+  lastBody = { mode: choice("mode"), meter: choice("meter"), title: $("title").value.trim(),
+               file: chosenFile, url: chosenFile ? "" : $("url").value.trim() };
+  start(lastBody);
+});
+
+async function start(req) {
+  const body = new FormData();
+  body.append("mode", req.mode); body.append("meter", req.meter); body.append("title", req.title);
+  if (req.file) body.append("file", req.file); else body.append("url", req.url);
+  show("working");
+  $("workTitle").textContent = req.file ? `Listening to “${req.file.name}”` : "Listening to your song";
+  started = Date.now();
+  setProgress(req.file ? "Sending the file" : "Starting", 0);
+  try {
+    const res = await fetch("/api/jobs", { method: "POST", body, headers: { "X-Token": TOKEN } });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.detail || data.error || "Couldn't start. Reload the page and try again.");
+    poll(data.id);
+  } catch (err) {
+    fail(err.message === "Failed to fetch" ? "The Choir Solfa app isn't running. Start it again, then reload this page." : err.message);
+  }
 }
 
 async function poll(id) {
   try {
     const res = await fetch(`/api/jobs/${id}`);
     const job = await res.json();
-    if (!res.ok) throw new Error(job.detail || "Lost track of the job.");
-    if (job.status === "failed") return showError(job.error);
-    setStage(job.stage, job.progress);
-    if (job.status === "done") return show(id, job.result);
-  } catch (err) { return showError(err.message); }
+    if (!res.ok) throw new Error(job.detail || "Lost track of this song. Try again.");
+    if (job.status === "failed") return fail(job.error);
+    setProgress(job.stage, job.progress || 0);
+    if (job.status === "done") return showResult(id, job.result);
+  } catch (err) {
+    return fail(err.message === "Failed to fetch" ? "The Choir Solfa app stopped. Start it again, then try once more." : err.message);
+  }
   timer = setTimeout(() => poll(id), 1000);
 }
 
-function show(id, r) {
-  $("go").disabled = false;
-  $("progress").hidden = true;
-  $("result").hidden = false;
+function setProgress(stage, frac) {
+  $("nowDetail").textContent = stage || "Working…";
+  const items = [...$("stages").children];
+  let current = 0;
+  items.forEach((li, i) => { if (frac >= parseFloat(li.dataset.from)) current = i; });
+  items.forEach((li, i) => { li.classList.toggle("done", i < current); li.classList.toggle("now", i === current); });
+  climb(frac, false);
+  const s = Math.round((Date.now() - started) / 1000);
+  $("elapsed").textContent = `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")} so far`;
+}
+
+function show(which) {
+  clearTimeout(timer);
+  for (const id of ["form", "working", "failed", "result"]) $(id).hidden = id !== which;
+  if (which === "form") resetClimb();
+  window.scrollTo({ top: 0, behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
+}
+
+function fail(msg) {
+  $("failMsg").textContent = msg || "Something went wrong.";
+  show("failed");
+}
+$("tryAgain").addEventListener("click", () => { show("form"); refreshReady(); $("url").focus(); });
+$("another").addEventListener("click", () => {
+  $("url").value = ""; $("title").value = ""; setChoice("mode", "auto"); setChoice("meter", "auto");
+  setFile(null); show("form"); $("url").focus();
+});
+
+/* ---------- Result ---------- */
+const pretty = (s) => String(s).replace(/([A-G])b(?![a-z])/g, "$1♭").replace(/([A-G])#/g, "$1♯");
+
+function showResult(id, r) {
+  show("result");
+  climb(1, true);
   $("rTitle").textContent = r.title;
+  const key = pretty(r.key.replace(/^Doh is /i, "Doh = ").replace(/\s*\(.*minor.*\)/i, ", minor"));
+  const facts = [["Key", key], ["Time", r.meter], ["Speed", `${r.tempo} a minute`], ["Length", `${r.bars} bars`]];
   $("facts").innerHTML = "";
-  [r.key, r.meter, `M. ${r.tempo}`, `${r.bars} bars`].forEach((t) => {
-    const s = document.createElement("span"); s.className = "fact"; s.textContent = t; $("facts").appendChild(s);
-  });
+  for (const [k, v] of facts) {
+    const d = document.createElement("div"); d.className = "fact";
+    const s = document.createElement("small"); s.textContent = k;
+    const b = document.createElement("b"); b.textContent = v;
+    d.append(s, b); $("facts").appendChild(d);
+  }
   $("kindNote").textContent = r.kind === "choir"
-    ? "Heard as a choir: each part is written as it was sung."
-    : "Heard as a solo song: the melody is the soprano line, and alto, tenor and bass are a suggested arrangement.";
+    ? "Heard as a choir: each part is written the way it was sung."
+    : "Heard as one lead singer: the tune is the soprano part, and alto, tenor and bass were written to go with it.";
+
+  const note = $("sourceNote");
+  note.textContent = "";
+  note.hidden = !r.found_on;
+  if (r.found_on) {
+    note.append("Spotify doesn't allow downloads, so this used the same song from YouTube: ");
+    if (/^https:\/\//.test(r.found_url || "")) {
+      const a = document.createElement("a"); a.href = r.found_url; a.target = "_blank"; a.rel = "noopener";
+      a.textContent = r.found_on; note.append(a);
+    } else { note.append(r.found_on); }
+    note.append(". Have a listen to check it's the right recording.");
+  }
+
   const base = `/api/jobs/${id}`;
   $("dlPdf").href = `${base}/score.pdf?download=1`;
+  $("openPdf").href = `${base}/score.pdf`;
   $("dlTxt").href = `${base}/score.txt?download=1`;
   $("dlMid").href = `${base}/score.mid?download=1`;
+
+  const fixes = [];
+  if (r.kind === "choir") fixes.push(["It's one lead singer: write the parts", { mode: "solo" }]);
+  else fixes.push(["It's a choir singing the parts", { mode: "choir" }]);
+  for (const m of ["4/4", "3/4", "6/8"]) if (m !== r.meter) fixes.push([`The time is ${m}`, { meter: m }]);
+  $("fixRow").innerHTML = "";
+  for (const [label, change] of fixes) {
+    const b = document.createElement("button"); b.type = "button"; b.className = "quiet"; b.textContent = label;
+    b.addEventListener("click", () => {
+      Object.assign(lastBody, change);
+      if (change.mode) setChoice("mode", change.mode);
+      if (change.meter) setChoice("meter", change.meter);
+      start(lastBody);
+    });
+    $("fixRow").appendChild(b);
+  }
+  $("fixes").hidden = !lastBody;
+
   $("preview").textContent = "Loading the score…";
-  fetch(`${base}/score.txt`).then((r) => r.text()).then((t) => { $("preview").textContent = t; });
-  $("result").scrollIntoView({ behavior: "smooth", block: "start" });
+  fetch(`${base}/score.txt`).then((res) => res.text()).then((t) => { $("preview").textContent = t; })
+    .catch(() => { $("preview").textContent = "Couldn't load the preview. The PDF download still works."; });
 }
+
+refreshReady();
 </script>
 </body>
 </html>

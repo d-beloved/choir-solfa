@@ -53,6 +53,31 @@ def refine_beats(beat_times, notes: list[Note]) -> np.ndarray:
     return beats + offset * step
 
 
+def fold_fast_beats(beat_times, notes: list[Note], max_bpm: float = 160.0) -> np.ndarray:
+    """Halve a beat grid that is too fast to be the sung beat.
+
+    In echoing rooms the tracker can lock onto half or third beats. Hymns
+    and anthems are rarely faster than 160 a minute, so while the grid is
+    faster than that, keep every other beat, choosing the half that more
+    notes start on.
+    """
+    beats = np.asarray(beat_times, dtype=float)
+    while len(beats) >= 8 and 60.0 / float(np.median(np.diff(beats))) > max_bpm:
+        halves = [beats[0::2], beats[1::2]]
+        step = float(np.median(np.diff(beats)))
+
+        def support(grid: np.ndarray) -> float:
+            score = 0.0
+            for n in notes:
+                gap = float(np.min(np.abs(grid - n.start)))
+                if gap < step / 2:
+                    score += n.amp * min(n.end - n.start, 4 * step) * (1 - 2 * gap / step)
+            return score
+
+        beats = max(halves, key=support)
+    return beats
+
+
 def tempo_from_beats(beat_times) -> float:
     beats = np.asarray(beat_times, dtype=float)
     if len(beats) < 2:

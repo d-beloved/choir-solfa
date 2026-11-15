@@ -28,11 +28,20 @@ The web page:
 .venv/bin/choir-solfa
 ```
 
-The page opens at http://127.0.0.1:4790. Paste a link (YouTube and most sites yt-dlp supports) or drop in an MP3, WAV, M4A or video file. A 4-minute song takes about 2 to 4 minutes.
+The page opens at http://127.0.0.1:4790. Paste a link (Spotify, YouTube and most sites yt-dlp supports) or drop an MP3, WAV, M4A or video file anywhere on the page. A 4-minute song takes about 2 to 4 minutes.
+
+The page checks the link as you paste it. It tells you, for example, when a Spotify link is a playlist or album rather than one song. When a score is ready, "Doesn't look right?" offers one-click fixes: switch between choir and lead singer, or change the time signature. Each fix makes the score again from the same song.
+
+### Spotify links
+
+In Spotify, open the song and use **Share → Copy song link**. Album, playlist and artist links are refused with a message.
+
+Spotify's audio is protected, so it can't be downloaded. Instead, the tool reads the song's title, artist and length from Spotify's public song page, then searches YouTube for the same recording. It takes the closest match within 8 seconds of the Spotify length, preferring the artist's official upload and avoiding karaoke, instrumental, cover and live versions. The page and the command line both say which YouTube video was used, so you can listen and check it's the right recording. If no close match exists, it says so: upload the file or paste a YouTube link instead.
 
 From the command line:
 
 ```bash
+.venv/bin/choir-solfa make "https://open.spotify.com/track/..." -o out/
 .venv/bin/choir-solfa make "https://www.youtube.com/watch?v=..." -o out/
 .venv/bin/choir-solfa make song.mp3 --mode solo --time 3/4 --title "Silent Night"
 ```
@@ -41,10 +50,10 @@ From the command line:
 
 ## How it works
 
-1. **Get the audio:** yt-dlp for links (no playlists, at most 15 minutes and 300 MB).
+1. **Get the audio:** yt-dlp for links (no playlists, at most 15 minutes and 300 MB). Spotify links are matched to the same recording on YouTube, as described above.
 2. **Separate the voices:** Demucs (htdemucs) splits the voices from the instruments. If the song is mostly voices (a cappella), it listens to the whole mix instead, because separation tends to drop the lowest voices.
 3. **Hear the notes:** Spotify's Basic Pitch finds every note sung, several at once. If three or more notes are often sounding together, the song is treated as a choir; otherwise as a solo.
-4. **Find the beat and the bars:** librosa tracks the beat. The beat is nudged to line up with where notes actually start. The time signature (3/4 or 4/4) is guessed from where long notes and chord changes fall.
+4. **Find the beat and the bars:** librosa tracks the beat. A beat faster than 160 a minute is halved, because in echoing rooms the tracker can lock onto half beats. The beat is nudged to line up with where notes actually start. The time signature (3/4 or 4/4) is guessed from where long notes and chord changes fall.
 5. **Find the key:** Krumhansl key profiles over the chroma and the notes heard. Minor keys are written in the lah mode, so doh is the relative major, as is usual in tonic solfa.
 6. **Write the parts:**
    - Choir: notes are sorted into four parts by range, keeping each line smooth.
@@ -60,6 +69,7 @@ This is automatic transcription. Treat the result as a first draft and check eve
 - **Held notes:** a held note sometimes shows as re-sung, especially when another part changes words at the same moment.
 - **Time signature:** only 3/4 and 4/4 are guessed. Choose 6/8 or 2/4 yourself.
 - **Key changes:** the song is written in a single key.
+- **Spotify matches:** the YouTube copy is found by title, artist and length. It is usually the same recording, but listen to check.
 - **Solo or choir:** a solo singer over a busy piano can be taken for a choir. Choose "One lead singer" if so.
 
 ## Development
