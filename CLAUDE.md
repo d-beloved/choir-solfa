@@ -4,7 +4,8 @@ A local tool that turns a song (link or file) into a four-part (SATB) tonic solf
 
 ## Environment
 - Use `.venv/bin/python` (native arm64 Python 3.11, made with uv). The system Python is x86 under Rosetta; don't use it.
-- ffmpeg is at /usr/local/bin/ffmpeg. torchaudio is not installed, so demucs audio I/O is avoided: decode with ffmpeg via `audio.decode`.
+- ffmpeg comes from imageio-ffmpeg and yt-dlp's JavaScript runtime from the deno package (`tools.py`), so users install neither. torchaudio is not installed, so demucs audio I/O is avoided: decode with ffmpeg via `audio.decode`.
+- NumPy is held below 2 on Windows and Intel Macs, where TensorFlow (Windows) and torch 2.2 (Intel Mac) were built for NumPy 1.
 - `setuptools<81` is pinned because resampy (used by basic-pitch) still imports pkg_resources.
 - Basic Pitch prints debug lines; they are silenced with redirect_stdout in `audio.polyphonic_notes`.
 
@@ -17,6 +18,7 @@ A local tool that turns a song (link or file) into a four-part (SATB) tonic solf
 - Grid cells: 4 per pulse in simple time, 2 per pulse in 6/8 (`models.METERS`). Pitches are sounding MIDI; `theory.written_pitch` raises tenor and bass by an octave for the page.
 - Movable doh. Minor keys use the lah mode, so doh is the relative major.
 - The server binds to 127.0.0.1 only and checks the Host header, and non-GET requests need the per-run X-Token. Keep both if you change routes. `--public-host` adds names to the Host check; `--restart-when-idle` (used under launchd) keeps the token in `~/.choir-solfa/token` so it survives the server quitting itself when idle after a song or a code change.
+- Desktop installs: `install.sh` / `install.ps1` run `uv tool install` from the GitHub zip, then `choir-solfa shortcut` makes the icon. The icon runs `python -m choir_solfa serve --quit-when-closed`: the page pings `/api/ping` each minute and the server quits 15 minutes after the last page closes. A second start just opens the page.
 - Messages shown on the page are plain words for choir leaders, not technical terms.
 
 ## Testing on real audio

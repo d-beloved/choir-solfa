@@ -14,6 +14,7 @@ from typing import Callable
 
 import numpy as np
 
+from . import tools
 from .models import Note, QNote
 
 Progress = Callable[[float], None]
@@ -27,12 +28,12 @@ class AudioError(Exception):
 
 def decode(path: Path, sr: int, channels: int) -> np.ndarray:
     """Decode any audio/video file with ffmpeg. Returns float32 array (channels, samples)."""
-    cmd = ["ffmpeg", "-v", "error", "-nostdin", "-i", str(path),
+    cmd = [tools.ffmpeg(), "-v", "error", "-nostdin", "-i", str(path),
            "-f", "f32le", "-ac", str(channels), "-ar", str(sr), "-"]
     try:
         out = subprocess.run(cmd, capture_output=True, check=True).stdout
     except FileNotFoundError as e:
-        raise AudioError("ffmpeg is not installed. Install it with: brew install ffmpeg") from e
+        raise AudioError("The audio reader (ffmpeg) is missing. Reinstall Choir Solfa to get it back.") from e
     except subprocess.CalledProcessError as e:
         msg = e.stderr.decode(errors="ignore").strip().splitlines()
         raise AudioError("Could not read that file as audio. " + (msg[-1] if msg else "")) from e

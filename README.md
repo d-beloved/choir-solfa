@@ -1,15 +1,47 @@
 # Choir Solfa
 
+**Website and download: [d-beloved.github.io/choir-solfa](https://d-beloved.github.io/choir-solfa/)**
+
+![The first bars of Silent Night as written out by Choir Solfa](docs/score.png)
+
 Give it a song (a link or an audio file). Get the tonic solfa for soprano, alto, tenor and bass as a printable PDF, plus a text version and a MIDI file to practise with.
 
 - **A choir singing parts:** each part is transcribed as it was sung.
 - **One lead singer:** the melody becomes the soprano line, and alto, tenor and bass are written as a hymn-style arrangement under it.
 
-Everything runs on your own Mac. Nothing is uploaded anywhere except the download from the link you give it.
+Everything runs on your own computer (Mac or Windows). Nothing is uploaded anywhere except the download from the link you give it.
 
-## Setup
+## Install
 
-You need [uv](https://docs.astral.sh/uv/) and ffmpeg (`brew install ffmpeg`). Node.js is optional; it helps with some YouTube links.
+The [website](https://d-beloved.github.io/choir-solfa/) walks through these steps with copy buttons.
+
+You need a Mac (Apple Silicon, M1 or newer, works best; Intel Macs are slower) or a 64-bit Windows PC, with about 3 GB of free space and 8 GB of memory or more. Nothing else needs installing first.
+
+**Mac:** open Terminal (press ⌘ Space, type Terminal), paste this line and press Return:
+
+```bash
+curl -LsSf https://raw.githubusercontent.com/d-beloved/choir-solfa/main/install.sh | sh
+```
+
+**Windows:** open PowerShell (Start menu, type PowerShell), paste this line and press Enter:
+
+```powershell
+powershell -ExecutionPolicy ByPass -c "irm https://raw.githubusercontent.com/d-beloved/choir-solfa/main/install.ps1 | iex"
+```
+
+Or download [install-choir-solfa.cmd](https://d-beloved.github.io/choir-solfa/install-choir-solfa.cmd) and double-click it. If Windows warns you, choose More info, then Run anyway.
+
+The first install downloads about 1 to 1.5 GB and takes a few minutes. When it finishes, **Choir Solfa** is in your Applications (Mac: Launchpad or Spotlight) or in the Start menu and on the desktop (Windows), and the page opens in your web browser.
+
+- Click the icon whenever you want to use it. It runs quietly in the background and stops by itself 15 minutes after you close the page.
+- The first song takes a little longer, because it downloads the voice-separation model (about 80 MB).
+- Your songs stay on your computer, in the `.choir-solfa` folder in your home folder.
+- **To update**, run the same line again.
+- **To remove it**, run `choir-solfa shortcut --remove`, then `uv tool uninstall choir-solfa`. Delete the `.choir-solfa` folder too if you don't want to keep your songs.
+
+The installer uses [uv](https://docs.astral.sh/uv/) to get its own copy of Python and the app, so it doesn't touch any other Python on your computer. ffmpeg (to read audio) and Deno (which YouTube downloads need) come with the app.
+
+## Development setup
 
 ```bash
 uv venv --python 3.11 .venv
@@ -18,19 +50,17 @@ uv pip install -e ".[dev]"
 
 On Apple Silicon, use a native arm64 Python 3.11. uv downloads one if needed. An x86 Python running under Rosetta is much slower and can't use the Core ML note model.
 
-The first song you run downloads the Demucs voice-separation model (about 80 MB).
-
 ## Use it
 
-The web page:
+Click the Choir Solfa icon, or from a terminal:
 
 ```bash
-.venv/bin/choir-solfa
+choir-solfa            # or .venv/bin/choir-solfa in a development setup
 ```
 
 The page opens at http://127.0.0.1:4790. Paste a link (Spotify, YouTube and most sites yt-dlp supports) or drop an MP3, WAV, M4A or video file anywhere on the page. A 4-minute song takes about 2 to 4 minutes.
 
-Every score you make is listed under **Your songs** on the page, newest first, so you can open, download or print it again later, even after closing the app. Reloading the page keeps you on the song you were looking at, or the one still being made. Scores are kept in `~/.choir-solfa/jobs/`, one folder per song. The × next to a song deletes its folder.
+Every score you make is listed under **Your songs** on the page, newest first, so you can open, download or print it again later, even after closing the app. Reloading the page keeps you on the song you were looking at, or the one still being made. Scores are kept in `~/.choir-solfa/jobs/`, one folder per song. The × next to a song deletes its folder, after asking first.
 
 The page checks the link as you paste it. It tells you, for example, when a Spotify link is a playlist or album rather than one song. When a score is ready, "Doesn't look right?" offers one-click fixes: switch between choir and lead singer, or change the time signature. Each fix makes the score again from the same song.
 
@@ -55,9 +85,9 @@ Spotify's audio is protected, so it can't be downloaded. Instead, the tool reads
 From the command line:
 
 ```bash
-.venv/bin/choir-solfa make "https://open.spotify.com/track/..." -o out/
-.venv/bin/choir-solfa make "https://www.youtube.com/watch?v=..." -o out/
-.venv/bin/choir-solfa make song.mp3 --mode solo --time 3/4 --title "Silent Night"
+choir-solfa make "https://open.spotify.com/track/..." -o out/
+choir-solfa make "https://www.youtube.com/watch?v=..." -o out/
+choir-solfa make song.mp3 --mode solo --time 3/4 --title "Silent Night"
 ```
 
 `--mode` is `auto`, `choir` or `solo`. `--time` is `auto`, `4/4`, `3/4`, `2/4` or `6/8`.
@@ -122,7 +152,11 @@ This is automatic transcription. Treat the result as a first draft and check eve
 .venv/bin/python -m pytest -q
 ```
 
+GitHub Actions runs these on macOS and Windows, and also runs the installers on Apple Silicon, Intel Mac and Windows machines and makes a score from a test recording (`scripts/smoke.py`).
+
 The code is under `src/choir_solfa/`. `pipeline.py` runs the steps above, `server.py` and `web/index.html` are the page, and `pdf.py` and `notation.py` lay out the score.
+
+The website is `docs/index.html`, published by GitHub Pages from the `docs/` folder on `main`. Preview it with `.venv/bin/python -m http.server 4794 --directory docs`.
 
 ## License
 

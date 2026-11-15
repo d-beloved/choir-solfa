@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+import os
 import shutil
 import sys
 import tempfile
@@ -15,7 +16,7 @@ def main(argv: list[str] | None = None) -> int:
     sub = parser.add_subparsers(dest="cmd")
 
     serve = sub.add_parser("serve", help="start the page in your browser (default)")
-    serve.add_argument("--port", type=int, default=4790)
+    serve.add_argument("--port", type=int, default=int(os.environ.get("CHOIR_SOLFA_PORT", 4790)))
     serve.add_argument("--no-open", action="store_true", help="do not open the browser")
     serve.add_argument("--public-host", action="append", default=None, metavar="NAME",
                        help="also answer at this address, e.g. solfa.example.com through a Cloudflare Tunnel "
@@ -23,6 +24,11 @@ def main(argv: list[str] | None = None) -> int:
     serve.add_argument("--restart-when-idle", action="store_true",
                        help="quit when idle after a song or a code change, so a service manager such as "
                             "launchd starts a fresh copy (picks up code changes and frees memory)")
+    serve.add_argument("--quit-when-closed", action="store_true",
+                       help="quit 15 minutes after the last page is closed (used by the desktop launcher)")
+
+    shortcut = sub.add_parser("shortcut", help="add a Choir Solfa icon to Applications (Mac) or the Start menu (Windows)")
+    shortcut.add_argument("--remove", action="store_true", help="take the icon away again")
 
     make = sub.add_parser("make", help="make a PDF from a file or link without the page")
     make.add_argument("song", help="audio/video file or a link to the song")
@@ -34,10 +40,34 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     if args.cmd == "make":
         return _make(args)
+    if args.cmd == "shortcut":
+        return _shortcut(args)
     from .server import serve as run_server
-    return run_server(port=getattr(args, "port", 4790), open_browser=not getattr(args, "no_open", False),
+    return run_server(port=getattr(args, "port", int(os.environ.get("CHOIR_SOLFA_PORT", 4790))), open_browser=not getattr(args, "no_open", False),
                       public_hosts=getattr(args, "public_host", None),
-                      restart_when_idle=getattr(args, "restart_when_idle", False))
+                      restart_when_idle=getattr(args, "restart_when_idle", False),
+                      quit_when_closed=getattr(args, "quit_when_closed", False))
+
+
+def _shortcut(args) -> int:
+    from . import shortcut
+
+    if args.remove:
+        gone = shortcut.remove()
+        print("Removed: " + ", ".join(map(str, gone)) if gone else "There was no Choir Solfa icon to remove.")
+        return 0
+    for place in shortcut.make():
+        print(f"Added {place}")
+    return 0
+
+
+def output_path(out: str | None, name: str) -> Path:
+    """Where `make -o` saves the PDF: a file name, or a folder (ending in / or already there)."""
+    if not out:
+        return Path(f"{name}.pdf")
+    if out.endswith(("/", "\\")) or Path(out).is_dir():
+        return Path(out) / f"{name}.pdf"
+    return Path(out)
 
 
 def _make(args) -> int:
@@ -54,7 +84,8 @@ def _make(args) -> int:
             return 1
         print(file=sys.stderr)
         safe = "".join(ch for ch in result.title if ch.isalnum() or ch in " -_").strip() or "score"
-        out = Path(args.out) if args.out else Path(f"{safe}.pdf")
+        out = output_path(args.out, safe)
+        out.parent.mkdir(parents=True, exist_ok=True)
         shutil.copyfile(result.pdf, out)
         shutil.copyfile(result.midi, out.with_suffix(".mid"))
     print(f"{result.title}: {result.key}, {result.meter}, M. {result.tempo}, {result.bars} bars ({result.kind})")

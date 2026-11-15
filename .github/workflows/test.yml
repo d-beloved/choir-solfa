@@ -1,0 +1,43 @@
+name: test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  unit:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - run: uv run --python 3.11 --extra dev pytest -q
+
+  install:
+    # Installs the way a choir leader would, then makes a score and opens the page.
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, macos-15-intel, windows-latest]
+    runs-on: ${{ matrix.os }}
+    env:
+      CHOIR_SOLFA_NO_OPEN: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - name: Run install.sh
+        if: runner.os == 'macOS'
+        run: CHOIR_SOLFA_SOURCE="$PWD" sh install.sh
+      - name: Run install.ps1
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $env:CHOIR_SOLFA_SOURCE = (Get-Location).Path
+          ./install.ps1
+      - name: Make a score and open the page
+        run: uv run --no-project --python 3.11 scripts/smoke.py

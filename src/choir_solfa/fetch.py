@@ -10,6 +10,8 @@ from pathlib import Path
 from typing import Callable
 from urllib.parse import urlparse
 
+from . import tools
+
 MAX_MINUTES = 15
 MAX_BYTES = 300 * 1024 * 1024
 
@@ -175,7 +177,7 @@ def find_on_youtube(track: SpotifyTrack, max_off: float = 8.0) -> dict:
     import yt_dlp
 
     query = f"ytsearch10:{track.artist} - {track.title}" if track.artist else f"ytsearch10:{track.title}"
-    opts = {"quiet": True, "no_warnings": True, "extract_flat": "in_playlist", "js_runtimes": {"node": {}}}
+    opts = {"quiet": True, "no_warnings": True, "extract_flat": "in_playlist", "js_runtimes": tools.js_runtimes()}
     try:
         with yt_dlp.YoutubeDL(opts) as ydl:
             entries = list((ydl.extract_info(query, download=False) or {}).get("entries") or [])
@@ -229,7 +231,8 @@ def download(url: str, dest: Path) -> tuple[Path, str]:
         "quiet": True,
         "no_warnings": True,
         "max_filesize": MAX_BYTES,
-        "js_runtimes": {"node": {}},  # YouTube needs a JavaScript runtime; Node is common on dev machines
+        "js_runtimes": tools.js_runtimes(),  # YouTube needs a JavaScript runtime
+        "ffmpeg_location": tools.ffmpeg(),
     }
     try:
         with yt_dlp.YoutubeDL(opts) as ydl:

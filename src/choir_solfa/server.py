@@ -15,6 +15,7 @@ import shutil
 import signal
 import threading
 import time
+import urllib.request
 import uuid
 import webbrowser
 from concurrent.futures import ThreadPoolExecutor
@@ -103,6 +104,26 @@ class Restarter:
         return None
 
 
+class Closer:
+    """Decides when the desktop app should quit because nobody is using it.
+
+    An open page calls /api/ping every minute, so this waits until no page has been
+    open for `after` seconds. It never quits while a song is waiting or being made.
+    """
+
+    def __init__(self, jobs: Jobs, after: float = 15 * 60.0, clock=time.time):
+        self.jobs, self.after, self.clock = jobs, after, clock
+        self.last_seen = clock()
+
+    def touch(self) -> None:
+        self.last_seen = self.clock()
+
+    def reason(self) -> str | None:
+        if self.jobs.any_busy() or self.clock() - self.last_seen < self.after:
+            return None
+        return f"no page has been open for {round(self.after / 60)} minutes"
+
+
 def _token(persist: bool) -> str:
     if not persist:
         return secrets.token_urlsafe(24)
@@ -120,27 +141,37 @@ def _token(persist: bool) -> str:
     return token
 
 
-def create_app(port: int, public_hosts: list[str] | None = None, restart_when_idle: bool = False) -> FastAPI:
+def create_app(port: int, public_hosts: list[str] | None = None, restart_when_idle: bool = False,
+               quit_when_closed: bool = False) -> FastAPI:
     """public_hosts: extra names the page may be reached by, e.g. through a Cloudflare Tunnel.
     Put access control (such as Cloudflare Access) in front of any public name: the page hands
     its token to whoever can load it.
-    restart_when_idle: set app.state.restarter; serve() then quits when it says so."""
+    restart_when_idle: set app.state.restarter; serve() then quits when it says so.
+    quit_when_closed: set app.state.closer, for the desktop app: quit once no page is open."""
     token = _token(persist=restart_when_idle)
     allowed_hosts = {f"127.0.0.1:{port}", f"localhost:{port}", *(h.strip().lower() for h in public_hosts or [] if h.strip())}
     jobs = Jobs()
     app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
     restarter = Restarter(jobs) if restart_when_idle else None
     app.state.restarter = restarter
+    closer = Closer(jobs) if quit_when_closed else None
+    app.state.closer = closer
 
     @app.middleware("http")
     async def host_check(request: Request, call_next):
-        if restarter:
+        if restarter and request.url.path != "/api/ping":  # an open page alone shouldn't hold off a restart
             restarter.touch()
+        if closer:
+            closer.touch()
         if request.headers.get("host", "").lower() not in allowed_hosts:
             return JSONResponse({"error": "Wrong host."}, status_code=403)
         if request.method != "GET" and not secrets.compare_digest(request.headers.get("x-token", ""), token):
             return JSONResponse({"error": "Missing or wrong token. Reload the page."}, status_code=403)
         return await call_next(request)
+
+    @app.get("/api/ping")
+    def ping() -> dict:
+        return {"app": "choir-solfa"}
 
     @app.get("/", response_class=HTMLResponse)
     def index() -> str:
@@ -296,31 +327,47 @@ def _run_job(jobs: Jobs, job_id: str, source: str, workdir: Path, mode: str, met
                 leftover.unlink(missing_ok=True)
 
 
-def _watch(restarter: Restarter, every: float = 5.0) -> None:
+def _watch(watcher: Restarter | Closer, message: str, every: float = 5.0) -> None:
     while True:
         time.sleep(every)
-        why = restarter.reason()
+        why = watcher.reason()
         if why:
-            print(f"{time.strftime('%Y-%m-%d %H:%M:%S')} Quitting to restart fresh: {why}.", flush=True)
-            os.kill(os.getpid(), signal.SIGTERM)  # uvicorn shuts down cleanly; launchd starts a new copy
+            print(f"{time.strftime('%Y-%m-%d %H:%M:%S')} {message}: {why}.", flush=True)
+            os.kill(os.getpid(), signal.SIGTERM)  # uvicorn shuts down cleanly (launchd then starts a new copy)
             return
 
 
+def already_running(url: str) -> bool:
+    """True when a copy of choir-solfa is already answering at this address."""
+    try:
+        with urllib.request.urlopen(f"{url}/api/ping", timeout=2) as r:
+            return json.load(r).get("app") == "choir-solfa"
+    except (OSError, ValueError):
+        return False
+
+
 def serve(port: int = 4790, open_browser: bool = True, public_hosts: list[str] | None = None,
-          restart_when_idle: bool = False) -> int:
+          restart_when_idle: bool = False, quit_when_closed: bool = False) -> int:
     import uvicorn
 
+    url = f"http://127.0.0.1:{port}"
+    if already_running(url):  # e.g. the app icon clicked twice: show the page that is already there
+        print(f"choir-solfa is already running at {url}", flush=True)
+        if open_browser:
+            webbrowser.open(url)
+        return 0
     JOBS.mkdir(parents=True, exist_ok=True)
     if public_hosts is None:
         public_hosts = os.environ.get("CHOIR_SOLFA_PUBLIC_HOST", "").split(",")
     public_hosts = [h.strip() for h in public_hosts if h.strip()]
-    app = create_app(port, public_hosts, restart_when_idle=restart_when_idle)
-    url = f"http://127.0.0.1:{port}"
+    app = create_app(port, public_hosts, restart_when_idle=restart_when_idle, quit_when_closed=quit_when_closed)
     print(f"{time.strftime('%Y-%m-%d %H:%M:%S')} choir-solfa is running at {url}  (Ctrl+C to stop)", flush=True)
     for host in public_hosts:
         print(f"Also answering at https://{host}", flush=True)
     if app.state.restarter:
-        threading.Thread(target=_watch, args=(app.state.restarter,), daemon=True).start()
+        threading.Thread(target=_watch, args=(app.state.restarter, "Quitting to restart fresh"), daemon=True).start()
+    if app.state.closer:
+        threading.Thread(target=_watch, args=(app.state.closer, "Quitting"), daemon=True).start()
     if open_browser:
         threading.Timer(1.0, lambda: webbrowser.open(url)).start()
     uvicorn.run(app, host="127.0.0.1", port=port, log_level="warning")

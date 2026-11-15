@@ -7,9 +7,13 @@ license = {text = "MIT"}
 dependencies = [
   "basic-pitch",
   "demucs",
+  "deno",  # JavaScript runtime yt-dlp needs for YouTube; ships the binary, so users need not install Node
+  "imageio-ffmpeg",  # ships an ffmpeg binary for macOS, Windows and Linux
   "fastapi",
   "librosa",
   "numpy",
+  # TensorFlow on Windows and torch on Intel Macs are older builds made for NumPy 1
+  "numpy<2; sys_platform == 'win32' or (sys_platform == 'darwin' and platform_machine == 'x86_64')",
   "pretty_midi",
   "python-multipart",
   "reportlab",
@@ -33,7 +37,7 @@ build-backend = "setuptools.build_meta"
 where = ["src"]
 
 [tool.setuptools.package-data]
-choir_solfa = ["web/*"]
+choir_solfa = ["web/*", "assets/*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

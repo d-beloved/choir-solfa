@@ -96,3 +96,31 @@ def test_a_forgotten_job_comes_back_from_disk(tmp_path, monkeypatch):
     assert jobs.get(C)["status"] == "failed"
     assert jobs.get(B) is None
     assert server._job_from_disk("../etc") is None
+
+
+def test_desktop_app_quits_only_when_no_page_is_open():
+    jobs = server.Jobs()
+    clock = Clock()
+    closer = server.Closer(jobs, after=900, clock=clock)
+    clock.now += 899
+    assert closer.reason() is None
+    closer.touch()  # an open page pings
+    clock.now += 899
+    assert closer.reason() is None
+    clock.now += 2
+    assert "15 minutes" in closer.reason()
+    jobs.add("busy")
+    assert closer.reason() is None  # never while a song is being made
+
+
+def test_ping_keeps_desktop_app_but_not_restart_alive(monkeypatch, tmp_path):
+    from fastapi.testclient import TestClient
+
+    monkeypatch.setattr(server, "HOME", tmp_path)  # the restart mode saves its token there
+    app = server.create_app(4790, restart_when_idle=True, quit_when_closed=True)
+    client = TestClient(app, base_url="http://127.0.0.1:4790")
+    app.state.restarter.last_request = 0
+    app.state.closer.last_seen = 0
+    assert client.get("/api/ping").json() == {"app": "choir-solfa"}
+    assert app.state.restarter.last_request == 0
+    assert app.state.closer.last_seen > 0

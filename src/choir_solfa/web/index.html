@@ -151,6 +151,17 @@
                         background: var(--primary-soft); font-size: 15px; }
   .guide-link:hover span { text-decoration: underline; text-underline-offset: 3px; }
 
+  /* Ask before removing a song */
+  dialog.ask { width: min(440px, calc(100vw - 32px)); padding: 26px 26px 22px; border: 1px solid var(--rule); border-radius: 22px;
+               background: var(--card); color: var(--ink); box-shadow: 0 30px 80px -20px rgba(0, 0, 0, .5); }
+  dialog.ask::backdrop { background: rgba(19, 21, 42, .5); backdrop-filter: blur(3px); }
+  dialog.ask[open] { animation: rise .25s cubic-bezier(.2, .7, .2, 1); }
+  dialog.ask h2 { font-family: var(--display); font-weight: 700; font-size: 22px; margin: 0 0 8px; overflow-wrap: anywhere; }
+  dialog.ask p { margin: 0; color: var(--muted); }
+  .ask-buttons { display: flex; flex-wrap: wrap-reverse; justify-content: flex-end; gap: 12px; margin-top: 22px; }
+  .ask-buttons button.primary { font-size: 16px; padding: 11px 20px; }
+  button.danger { background: var(--primary-deep); box-shadow: 0 5px 0 #8f2c19; }
+
   /* How to read the score */
   dialog.guide { width: min(740px, calc(100vw - 32px)); max-height: calc(100dvh - 40px); padding: 0; border: 1px solid var(--rule);
                  border-radius: 26px; background: var(--card); color: var(--ink); box-shadow: 0 30px 80px -20px rgba(0, 0, 0, .5);
@@ -270,6 +281,8 @@
   :is(button, a):focus-visible { outline: 3px solid var(--teal); outline-offset: 3px; }
   .go-hint { color: var(--muted); font-size: 14px; }
   .form-error { color: var(--primary-deep); font-weight: 600; margin-top: 14px; }
+  .closed-note { position: sticky; top: 0; z-index: 10; margin: 0 0 16px; padding: 12px 16px; border-radius: 12px;
+                 background: var(--primary-deep); color: #fff; font-weight: 600; text-align: center; }
 
   /* Working */
   .stages { list-style: none; padding: 0; margin: 18px 0 0; display: grid; gap: 4px; }
@@ -412,6 +425,7 @@
   </aside>
 
   <main>
+    <div class="closed-note" id="closedNote" role="alert" hidden>Choir Solfa isn't running right now. Open it again, then reload this page.</div>
     <header class="reveal">
       <div class="title-row">
         <h1 aria-label="Choir Solfa">Choir <span class="rainbow" aria-hidden="true"><i>S</i><i>o</i><i>l</i><i>f</i><i>a</i></span></h1>
@@ -553,6 +567,17 @@
     </section>
   </main>
 </div>
+
+<dialog class="ask" id="removeAsk" aria-labelledby="removeTitle" aria-describedby="removeText">
+  <form method="dialog">
+    <h2 id="removeTitle">Remove this song?</h2>
+    <p id="removeText">Its PDF, text and MIDI files will be deleted from this computer. This can't be undone.</p>
+    <div class="ask-buttons">
+      <button type="submit" value="remove" class="primary danger" id="removeYes">Remove</button>
+      <button type="submit" value="keep" class="quiet" id="removeKeep" autofocus>Keep it</button>
+    </div>
+  </form>
+</dialog>
 
 <dialog class="guide" id="guide" aria-labelledby="guideTitle">
   <div class="guide-head">
@@ -914,8 +939,24 @@ function drawSongs() {
 }
 $("songsMore").addEventListener("click", () => { songsExpanded = true; drawSongs(); });
 
+// Ask on the page, not with confirm(): it can be tapped through, and some in-app phone browsers skip it.
+function askToRemove(song) {
+  const ask = $("removeAsk");
+  $("removeTitle").textContent = `Remove “${song.title || "Untitled song"}”?`;
+  ask.returnValue = "keep";  // closing with Esc or a tap outside keeps the song
+  return new Promise((resolve) => {
+    ask.addEventListener("close", () => resolve(ask.returnValue === "remove"), { once: true });
+    ask.showModal();
+    $("removeKeep").focus();
+  });
+}
+$("removeAsk").addEventListener("click", (e) => {  // a tap on the dimmed page outside the box keeps the song
+  const r = $("removeAsk").getBoundingClientRect();
+  if (e.target === $("removeAsk") && (e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom)) $("removeAsk").close("keep");
+});
+
 async function removeSong(song) {
-  if (!confirm(`Remove “${song.title || "this song"}”? Its PDF, text and MIDI files will be deleted from this computer.`)) return;
+  if (!(await askToRemove(song))) return;
   try {
     const res = await fetch(`/api/songs/${song.id}`, { method: "DELETE", headers: { "X-Token": TOKEN } });
     if (!res.ok && res.status !== 404) {
@@ -992,6 +1033,21 @@ $("themeSwitch").addEventListener("click", () => {
 });
 // Until someone picks, keep following the computer's setting.
 systemDark.addEventListener("change", (e) => { if (!savedTheme()) applyTheme(e.matches ? "dark" : "light"); });
+
+/* ---------- Keep-alive ---------- */
+// An open page tells the app it is still wanted. The desktop app quits once no page has
+// been open for a while; if that happens, say so instead of failing quietly.
+let missedPings = 0;
+async function ping() {
+  try {
+    const res = await fetch("/api/ping", { cache: "no-store" });
+    missedPings = res.ok ? 0 : missedPings + 1;
+  } catch { missedPings += 1; }
+  $("closedNote").hidden = missedPings < 2;  // one miss can be a quick restart
+  if (missedPings === 1) setTimeout(ping, 5000);
+}
+setInterval(ping, 60000);
+document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") ping(); });
 
 refreshReady();
 if (songInAddress()) openSong(songInAddress()); else loadSongs();

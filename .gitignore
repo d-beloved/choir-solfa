@@ -4,3 +4,4 @@ __pycache__/
 jobs/
 .pytest_cache/
 *.egg-info/
+build/
