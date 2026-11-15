@@ -34,6 +34,16 @@ Every score you make is listed under **Your songs** on the page, newest first, s
 
 The page checks the link as you paste it. It tells you, for example, when a Spotify link is a playlist or album rather than one song. When a score is ready, "Doesn't look right?" offers one-click fixes: switch between choir and lead singer, or change the time signature. Each fix makes the score again from the same song.
 
+### Opening it from your phone
+
+The page only answers on your own Mac. To reach it from elsewhere, put a tunnel such as Cloudflare Tunnel in front and tell the app the public address:
+
+```bash
+.venv/bin/choir-solfa serve --no-open --public-host solfa.example.com
+```
+
+(or set `CHOIR_SOLFA_PUBLIC_HOST`). Anyone who can open the page can make and delete songs, so put a login in front of the address, for example Cloudflare Access with email codes.
+
 ### Spotify links
 
 In Spotify, open the song and use **Share → Copy song link**. Album, playlist and artist links are refused with a message.

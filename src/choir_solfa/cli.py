@@ -17,6 +17,9 @@ def main(argv: list[str] | None = None) -> int:
     serve = sub.add_parser("serve", help="start the page in your browser (default)")
     serve.add_argument("--port", type=int, default=4790)
     serve.add_argument("--no-open", action="store_true", help="do not open the browser")
+    serve.add_argument("--public-host", action="append", default=None, metavar="NAME",
+                       help="also answer at this address, e.g. solfa.example.com through a Cloudflare Tunnel "
+                            "(or set CHOIR_SOLFA_PUBLIC_HOST); keep a login such as Cloudflare Access in front")
 
     make = sub.add_parser("make", help="make a PDF from a file or link without the page")
     make.add_argument("song", help="audio/video file or a link to the song")
@@ -29,7 +32,8 @@ def main(argv: list[str] | None = None) -> int:
     if args.cmd == "make":
         return _make(args)
     from .server import serve as run_server
-    return run_server(port=getattr(args, "port", 4790), open_browser=not getattr(args, "no_open", False))
+    return run_server(port=getattr(args, "port", 4790), open_browser=not getattr(args, "no_open", False),
+                      public_hosts=getattr(args, "public_host", None))
 
 
 def _make(args) -> int:

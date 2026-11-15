@@ -56,15 +56,18 @@ class Jobs:
             return self.state.get(job_id, {}).get("status") in ("waiting", "working")
 
 
-def create_app(port: int) -> FastAPI:
+def create_app(port: int, public_hosts: list[str] | None = None) -> FastAPI:
+    """public_hosts: extra names the page may be reached by, e.g. through a Cloudflare Tunnel.
+    Put access control (such as Cloudflare Access) in front of any public name: the page hands
+    its token to whoever can load it."""
     token = secrets.token_urlsafe(24)
-    allowed_hosts = {f"127.0.0.1:{port}", f"localhost:{port}"}
+    allowed_hosts = {f"127.0.0.1:{port}", f"localhost:{port}", *(h.strip().lower() for h in public_hosts or [] if h.strip())}
     jobs = Jobs()
     app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
 
     @app.middleware("http")
     async def host_check(request: Request, call_next):
-        if request.headers.get("host") not in allowed_hosts:
+        if request.headers.get("host", "").lower() not in allowed_hosts:
             return JSONResponse({"error": "Wrong host."}, status_code=403)
         if request.method != "GET" and not secrets.compare_digest(request.headers.get("x-token", ""), token):
             return JSONResponse({"error": "Missing or wrong token. Reload the page."}, status_code=403)
@@ -224,13 +227,18 @@ def _run_job(jobs: Jobs, job_id: str, source: str, workdir: Path, mode: str, met
                 leftover.unlink(missing_ok=True)
 
 
-def serve(port: int = 4790, open_browser: bool = True) -> int:
+def serve(port: int = 4790, open_browser: bool = True, public_hosts: list[str] | None = None) -> int:
     import uvicorn
 
     JOBS.mkdir(parents=True, exist_ok=True)
-    app = create_app(port)
+    if public_hosts is None:
+        public_hosts = os.environ.get("CHOIR_SOLFA_PUBLIC_HOST", "").split(",")
+    public_hosts = [h.strip() for h in public_hosts if h.strip()]
+    app = create_app(port, public_hosts)
     url = f"http://127.0.0.1:{port}"
     print(f"choir-solfa is running at {url}  (Ctrl+C to stop)")
+    for host in public_hosts:
+        print(f"Also answering at https://{host}")
     if open_browser:
         threading.Timer(1.0, lambda: webbrowser.open(url)).start()
     uvicorn.run(app, host="127.0.0.1", port=port, log_level="warning")

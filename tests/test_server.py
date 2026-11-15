@@ -28,6 +28,16 @@ def test_songs_are_listed_newest_first(tmp_path, monkeypatch):
     assert songs[0]["redo"] is None and songs[0]["key"] == "Doh is Bb"
 
 
+def test_only_known_hosts_are_answered():
+    from fastapi.testclient import TestClient
+
+    client = TestClient(server.create_app(4790, ["Solfa.Example.com"]))
+    assert client.get("/", headers={"host": "127.0.0.1:4790"}).status_code == 200
+    assert client.get("/", headers={"host": "solfa.example.com"}).status_code == 200
+    assert client.get("/", headers={"host": "evil.example.com"}).status_code == 403
+    assert client.delete(f"/api/songs/{A}", headers={"host": "solfa.example.com"}).status_code == 403  # no token
+
+
 def test_a_forgotten_job_comes_back_from_disk(tmp_path, monkeypatch):
     monkeypatch.setattr(server, "JOBS", tmp_path)
     _song(tmp_path, A, "Silent Night", 100.0)
