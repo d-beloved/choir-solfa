@@ -38,3 +38,19 @@ def test_make_saves_into_a_folder_or_a_named_file(tmp_path):
     assert output_path(f"{tmp_path}/new/", "Song") == tmp_path / "new" / "Song.pdf"
     assert output_path(str(tmp_path), "Song") == tmp_path / "Song.pdf"
     assert output_path(f"{tmp_path}/x/mine.pdf", "Song") == tmp_path / "x" / "mine.pdf"
+
+
+def test_mac_installer_download_is_current():
+    """docs/Install-Choir-Solfa-Mac.zip must match scripts/make_mac_installer.py."""
+    import importlib.util
+    import zipfile
+    from pathlib import Path
+
+    path = Path(__file__).resolve().parent.parent / "scripts" / "make_mac_installer.py"
+    spec = importlib.util.spec_from_file_location("make_mac_installer", path)
+    maker = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(maker)
+    assert maker.OUT.read_bytes() == maker.build(), "run scripts/make_mac_installer.py again"
+    with zipfile.ZipFile(maker.OUT) as z:
+        program = z.getinfo("Install Choir Solfa.app/Contents/MacOS/install")
+        assert program.external_attr >> 16 == 0o100755

@@ -19,6 +19,7 @@ A local tool that turns a song (link or file) into a four-part (SATB) tonic solf
 - Movable doh. Minor keys use the lah mode, so doh is the relative major.
 - The server binds to 127.0.0.1 only and checks the Host header, and non-GET requests need the per-run X-Token. Keep both if you change routes. `--public-host` adds names to the Host check; `--restart-when-idle` (used under launchd) keeps the token in `~/.choir-solfa/token` so it survives the server quitting itself when idle after a song or a code change.
 - Desktop installs: `install.sh` / `install.ps1` run `uv tool install` from the GitHub zip, then `choir-solfa shortcut` makes the icon. The icon runs `python -m choir_solfa serve --quit-when-closed`: the page pings `/api/ping` each minute and the server quits 15 minutes after the last page closes. A second start just opens the page.
+- Downloads on the website (`docs/`, GitHub Pages): `install-choir-solfa.cmd` for Windows and `Install-Choir-Solfa-Mac.zip`, an unsigned app that opens Terminal on `install.sh`. Rebuild the zip with `scripts/make_mac_installer.py` after changing it; a test checks they match.
 - Messages shown on the page are plain words for choir leaders, not technical terms.
 
 ## Testing on real audio

@@ -13,9 +13,20 @@ Everything runs on your own computer (Mac or Windows). Nothing is uploaded anywh
 
 ## Install
 
-The [website](https://d-beloved.github.io/choir-solfa/) walks through these steps with copy buttons.
+Go to **[d-beloved.github.io/choir-solfa](https://d-beloved.github.io/choir-solfa/)** and download the installer for your computer. Nothing else needs installing first.
 
-You need a Mac (Apple Silicon, M1 or newer, works best; Intel Macs are slower) or a 64-bit Windows PC, with about 3 GB of free space and 8 GB of memory or more. Nothing else needs installing first.
+You need a Mac (Apple Silicon, M1 or newer, works best; Intel Macs are slower) or a 64-bit Windows PC, with about 3 GB of free space and 8 GB of memory or more.
+
+**Mac:** download [Install-Choir-Solfa-Mac.zip](https://d-beloved.github.io/choir-solfa/Install-Choir-Solfa-Mac.zip), open it and double-click **Install Choir Solfa**. The installer isn't signed by Apple yet, so the first time your Mac says it can't check it. Click Done, then go to System Settings → Privacy & Security and click **Open Anyway**. (On macOS 14 or older: Control-click the installer, choose Open, then Open again.)
+
+**Windows:** download [install-choir-solfa.cmd](https://d-beloved.github.io/choir-solfa/install-choir-solfa.cmd) and double-click it. If Windows says it protected your PC, click **More info**, then **Run anyway**.
+
+A window shows the install as it goes. The first install downloads about 1 to 1.5 GB and takes a few minutes. When it finishes, **Choir Solfa** is in your Applications (Mac: Launchpad or Spotlight) or in the Start menu and on the desktop (Windows), and the page opens in your web browser.
+
+<details>
+<summary>Prefer to type? Install from Terminal or PowerShell instead</summary>
+
+This is what the installers run. On a Mac it avoids the security warning.
 
 **Mac:** open Terminal (press ⌘ Space, type Terminal), paste this line and press Return:
 
@@ -29,17 +40,15 @@ curl -LsSf https://raw.githubusercontent.com/d-beloved/choir-solfa/main/install.
 powershell -ExecutionPolicy ByPass -c "irm https://raw.githubusercontent.com/d-beloved/choir-solfa/main/install.ps1 | iex"
 ```
 
-Or download [install-choir-solfa.cmd](https://d-beloved.github.io/choir-solfa/install-choir-solfa.cmd) and double-click it. If Windows warns you, choose More info, then Run anyway.
-
-The first install downloads about 1 to 1.5 GB and takes a few minutes. When it finishes, **Choir Solfa** is in your Applications (Mac: Launchpad or Spotlight) or in the Start menu and on the desktop (Windows), and the page opens in your web browser.
+</details>
 
 - Click the icon whenever you want to use it. It runs quietly in the background and stops by itself 15 minutes after you close the page.
 - The first song takes a little longer, because it downloads the voice-separation model (about 80 MB).
 - Your songs stay on your computer, in the `.choir-solfa` folder in your home folder.
-- **To update**, run the same line again.
+- **To update**, download and open the installer again (or run the same line again).
 - **To remove it**, run `choir-solfa shortcut --remove`, then `uv tool uninstall choir-solfa`. Delete the `.choir-solfa` folder too if you don't want to keep your songs.
 
-The installer uses [uv](https://docs.astral.sh/uv/) to get its own copy of Python and the app, so it doesn't touch any other Python on your computer. ffmpeg (to read audio) and Deno (which YouTube downloads need) come with the app.
+The installer uses [uv](https://docs.astral.sh/uv/) to get its own copy of Python and the app, so it doesn't touch any other Python on your computer. ffmpeg (to read audio) and Deno (which YouTube downloads need) come with the app. The Mac installer is a small app made by `scripts/make_mac_installer.py`: it opens Terminal and runs `install.sh`, so it always installs the latest version.
 
 ## Development setup
 
