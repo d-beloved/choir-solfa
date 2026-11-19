@@ -1,0 +1,82 @@
+name: mac installer
+
+# Builds "Install Choir Solfa.app" and publishes it as Install-Choir-Solfa-Mac.zip on the
+# "mac-installer" release, which the website links to. With the signing secrets set (see
+# scripts/setup_mac_signing.sh) it is signed with a Developer ID and notarized by Apple, so
+# it opens without a warning. Without them it is published unsigned.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - scripts/make_mac_installer.py
+      - src/choir_solfa/assets/icon.icns
+      - .github/workflows/mac-installer.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: macos-latest
+    env:
+      SIGNED: ${{ secrets.MACOS_CERT_P12 != '' && secrets.NOTARY_KEY_P8 != '' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Load the signing certificate
+        if: env.SIGNED == 'true'
+        env:
+          MACOS_CERT_P12: ${{ secrets.MACOS_CERT_P12 }}
+          MACOS_CERT_PASSWORD: ${{ secrets.MACOS_CERT_PASSWORD }}
+        run: |
+          KEYCHAIN="$RUNNER_TEMP/signing.keychain-db"
+          KC_PW="$(uuidgen)"
+          security create-keychain -p "$KC_PW" "$KEYCHAIN"
+          security set-keychain-settings -lut 3600 "$KEYCHAIN"
+          security unlock-keychain -p "$KC_PW" "$KEYCHAIN"
+          echo "$MACOS_CERT_P12" | base64 --decode > "$RUNNER_TEMP/cert.p12"
+          security import "$RUNNER_TEMP/cert.p12" -P "$MACOS_CERT_PASSWORD" -A -f pkcs12 -k "$KEYCHAIN"
+          rm "$RUNNER_TEMP/cert.p12"
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KC_PW" "$KEYCHAIN" > /dev/null
+          security list-keychains -d user -s "$KEYCHAIN" $(security list-keychains -d user | tr -d '"')
+          IDENTITY="$(security find-identity -v -p codesigning "$KEYCHAIN" | sed -n 's/.*"\(Developer ID Application: .*\)"/\1/p' | head -1)"
+          [ -n "$IDENTITY" ] || { echo "No Developer ID Application identity in the certificate"; exit 1; }
+          echo "Signing as: $IDENTITY"
+          echo "MACOS_SIGN_IDENTITY=$IDENTITY" >> "$GITHUB_ENV"
+
+      - name: Build the installer
+        run: python3 scripts/make_mac_installer.py
+
+      - name: Notarize and staple
+        if: env.SIGNED == 'true'
+        env:
+          NOTARY_KEY_P8: ${{ secrets.NOTARY_KEY_P8 }}
+          NOTARY_KEY_ID: ${{ secrets.NOTARY_KEY_ID }}
+          NOTARY_ISSUER_ID: ${{ secrets.NOTARY_ISSUER_ID }}
+        run: |
+          printf '%s\n' "$NOTARY_KEY_P8" > "$RUNNER_TEMP/notary.p8"
+          AUTH="--key $RUNNER_TEMP/notary.p8 --key-id $NOTARY_KEY_ID --issuer $NOTARY_ISSUER_ID"
+          xcrun notarytool submit dist/Install-Choir-Solfa-Mac.zip $AUTH --wait --output-format json > "$RUNNER_TEMP/notary.json"
+          cat "$RUNNER_TEMP/notary.json"; echo
+          STATUS="$(plutil -extract status raw "$RUNNER_TEMP/notary.json")"
+          if [ "$STATUS" != "Accepted" ]; then
+            xcrun notarytool log "$(plutil -extract id raw "$RUNNER_TEMP/notary.json")" $AUTH
+            exit 1
+          fi
+          xcrun stapler staple "dist/Install Choir Solfa.app"
+          rm dist/Install-Choir-Solfa-Mac.zip
+          ditto -c -k --keepParent "dist/Install Choir Solfa.app" dist/Install-Choir-Solfa-Mac.zip
+          spctl --assess --type execute -vv "dist/Install Choir Solfa.app"
+
+      - name: Publish to the mac-installer release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [ "$SIGNED" = "true" ]; then NOTE="Signed and notarized by Apple."; else NOTE="Not signed yet: the first open needs Open Anyway in System Settings."; fi
+          gh release view mac-installer > /dev/null 2>&1 || \
+            gh release create mac-installer --title "Mac installer" --latest=false \
+              --notes "Download Install-Choir-Solfa-Mac.zip, open it and double-click Install Choir Solfa. Steps: https://d-beloved.github.io/choir-solfa/"
+          gh release upload mac-installer dist/Install-Choir-Solfa-Mac.zip --clobber
+          echo "Published ($NOTE) from $GITHUB_SHA"

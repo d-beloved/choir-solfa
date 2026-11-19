@@ -17,7 +17,7 @@ Go to **[d-beloved.github.io/choir-solfa](https://d-beloved.github.io/choir-solf
 
 You need a Mac (Apple Silicon, M1 or newer, works best; Intel Macs are slower) or a 64-bit Windows PC, with about 3 GB of free space and 8 GB of memory or more.
 
-**Mac:** download [Install-Choir-Solfa-Mac.zip](https://d-beloved.github.io/choir-solfa/Install-Choir-Solfa-Mac.zip), open it and double-click **Install Choir Solfa**. The installer isn't signed by Apple yet, so the first time your Mac says it can't check it. Click Done, then go to System Settings → Privacy & Security and click **Open Anyway**. (On macOS 14 or older: Control-click the installer, choose Open, then Open again.)
+**Mac:** download [Install-Choir-Solfa-Mac.zip](https://github.com/d-beloved/choir-solfa/releases/download/mac-installer/Install-Choir-Solfa-Mac.zip), open it and double-click **Install Choir Solfa**. The installer isn't signed by Apple yet, so the first time your Mac says it can't check it. Click Done, then go to System Settings → Privacy & Security and click **Open Anyway**. (On macOS 14 or older: Control-click the installer, choose Open, then Open again.)
 
 **Windows:** download [install-choir-solfa.cmd](https://d-beloved.github.io/choir-solfa/install-choir-solfa.cmd) and double-click it. If Windows says it protected your PC, click **More info**, then **Run anyway**.
 
@@ -48,7 +48,7 @@ powershell -ExecutionPolicy ByPass -c "irm https://raw.githubusercontent.com/d-b
 - **To update**, download and open the installer again (or run the same line again).
 - **To remove it**, run `choir-solfa shortcut --remove`, then `uv tool uninstall choir-solfa`. Delete the `.choir-solfa` folder too if you don't want to keep your songs.
 
-The installer uses [uv](https://docs.astral.sh/uv/) to get its own copy of Python and the app, so it doesn't touch any other Python on your computer. ffmpeg (to read audio) and Deno (which YouTube downloads need) come with the app. The Mac installer is a small app made by `scripts/make_mac_installer.py`: it opens Terminal and runs `install.sh`, so it always installs the latest version.
+The installer uses [uv](https://docs.astral.sh/uv/) to get its own copy of Python and the app, so it doesn't touch any other Python on your computer. ffmpeg (to read audio) and Deno (which YouTube downloads need) come with the app. The Mac installer is a small app made by `scripts/make_mac_installer.py` and published on the [mac-installer release](https://github.com/d-beloved/choir-solfa/releases/tag/mac-installer) by GitHub Actions: it opens Terminal and runs `install.sh`, so it always installs the latest version.
 
 ## Development setup
 

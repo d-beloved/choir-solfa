@@ -1,31 +1,42 @@
-"""Build docs/Install-Choir-Solfa-Mac.zip: a small app that installs Choir Solfa when double-clicked.
+"""Build dist/Install-Choir-Solfa-Mac.zip: a small app that installs Choir Solfa when double-clicked.
 
-    .venv/bin/python scripts/make_mac_installer.py
+    python3 scripts/make_mac_installer.py
 
-The app opens a Terminal window that runs install.sh from GitHub, so people can watch it
-work and it always installs the latest version. It holds no Python and never goes stale.
+Needs a Mac (it uses osacompile, codesign and ditto). CI builds it and publishes it to the
+"mac-installer" GitHub release, which the website links to (.github/workflows/mac-installer.yml).
 
-The zip is built the same way every time (fixed dates and order), so a test can check that
-the copy in docs/ matches this script. It is not signed by Apple, so the first open shows
-a warning; see the website for the steps.
+The app is a compiled AppleScript applet, so Apple's notary service accepts it. When opened,
+it runs launch.sh from its Resources folder, which writes a .command file and opens it with
+Terminal: people can watch the install, and it always runs the latest install.sh from GitHub.
+Opening a file needs no extra permission, unlike asking Terminal to run a command.
+
+Set MACOS_SIGN_IDENTITY (a "Developer ID Application" identity in the keychain) to sign it.
+Notarizing and stapling happen in the workflow, after this script.
 """
 from __future__ import annotations
 
-import io
+import os
 import plistlib
-import zipfile
+import shutil
+import subprocess
+import sys
+import tempfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-OUT = ROOT / "docs" / "Install-Choir-Solfa-Mac.zip"
+DIST = ROOT / "dist"
 ICON = ROOT / "src" / "choir_solfa" / "assets" / "icon.icns"
 APP = "Install Choir Solfa.app"
+ZIP = "Install-Choir-Solfa-Mac.zip"
 INSTALL_URL = "https://raw.githubusercontent.com/d-beloved/choir-solfa/main/install.sh"
 
-# The app's program. It writes a .command file and opens it with Terminal: opening a file
-# needs no extra permission, unlike asking Terminal to run a command.
+APPLESCRIPT = """\
+-- Install Choir Solfa: runs launch.sh, which opens Terminal on the installer.
+do shell script "/bin/sh " & quoted form of POSIX path of (path to resource "launch.sh")
+"""
+
 LAUNCHER = f"""#!/bin/sh
-# Install Choir Solfa: opens Terminal and runs the installer there, so you can watch it.
+# Opens Terminal and runs the Choir Solfa installer there, so you can watch it.
 URL="${{CHOIR_SOLFA_INSTALL_URL:-{INSTALL_URL}}}"
 DIR="$(mktemp -d)"
 SCRIPT="$DIR/Installing Choir Solfa.command"
@@ -47,45 +58,58 @@ chmod +x "$SCRIPT"
 open -a Terminal "$SCRIPT"
 """
 
-INFO = {
-    "CFBundleName": "Install Choir Solfa",
-    "CFBundleDisplayName": "Install Choir Solfa",
-    "CFBundleIdentifier": "io.github.d-beloved.choir-solfa.installer",
-    "CFBundleExecutable": "install",
-    "CFBundleIconFile": "icon",
-    "CFBundlePackageType": "APPL",
-    "CFBundleShortVersionString": "1.0",
-    "CFBundleVersion": "1",
-    "LSMinimumSystemVersion": "11.0",
-    "LSUIElement": True,  # it only opens Terminal, so no Dock icon
-}
 
-DATE = (2026, 1, 1, 0, 0, 0)
+def run(*cmd: str | Path) -> None:
+    subprocess.run([str(c) for c in cmd], check=True)
 
 
-def _add(z: zipfile.ZipFile, name: str, data: bytes | None, mode: int) -> None:
-    info = zipfile.ZipInfo(name, DATE)
-    info.create_system = 3  # Unix, so the permission bits below are kept when unzipped
-    if data is None:
-        info.external_attr = (0o40755 << 16) | 0x10
-        z.writestr(info, b"")
+def build_app(out: Path) -> Path:
+    """Make the app in `out`, signed when MACOS_SIGN_IDENTITY is set. Returns its path."""
+    app = out / APP
+    shutil.rmtree(app, ignore_errors=True)
+    with tempfile.TemporaryDirectory() as tmp:
+        source = Path(tmp) / "install.applescript"
+        source.write_text(APPLESCRIPT)
+        run("osacompile", "-o", app, source)
+
+    resources = app / "Contents" / "Resources"
+    launcher = resources / "launch.sh"
+    launcher.write_text(LAUNCHER)
+    launcher.chmod(0o755)
+    shutil.copyfile(ICON, resources / "applet.icns")
+
+    plist = app / "Contents" / "Info.plist"
+    info = plistlib.loads(plist.read_bytes())
+    info.update({
+        "CFBundleName": "Install Choir Solfa",
+        "CFBundleDisplayName": "Install Choir Solfa",
+        "CFBundleIdentifier": "io.github.d-beloved.choir-solfa.installer",
+        "CFBundleShortVersionString": "1.1",
+        "CFBundleVersion": "2",
+        "LSMinimumSystemVersion": "11.0",
+        "LSUIElement": True,  # it only opens Terminal, so no Dock icon
+    })
+    plist.write_bytes(plistlib.dumps(info))
+
+    identity = os.environ.get("MACOS_SIGN_IDENTITY")
+    if identity:
+        run("codesign", "--force", "--deep", "--options", "runtime", "--timestamp", "--sign", identity, app)
     else:
-        info.external_attr = mode << 16
-        info.compress_type = zipfile.ZIP_DEFLATED
-        z.writestr(info, data)
+        run("codesign", "--force", "--deep", "--sign", "-", app)  # ad hoc: it runs, with a warning when downloaded
+    run("codesign", "--verify", "--strict", "--verbose=2", app)
+    return app
 
 
-def build() -> bytes:
-    buf = io.BytesIO()
-    with zipfile.ZipFile(buf, "w") as z:
-        for d in ("", "Contents/", "Contents/MacOS/", "Contents/Resources/"):
-            _add(z, f"{APP}/{d}", None, 0)
-        _add(z, f"{APP}/Contents/Info.plist", plistlib.dumps(INFO, sort_keys=True), 0o100644)
-        _add(z, f"{APP}/Contents/MacOS/install", LAUNCHER.encode(), 0o100755)
-        _add(z, f"{APP}/Contents/Resources/icon.icns", ICON.read_bytes(), 0o100644)
-    return buf.getvalue()
+def zip_app(app: Path) -> Path:
+    archive = app.parent / ZIP
+    archive.unlink(missing_ok=True)
+    run("ditto", "-c", "-k", "--keepParent", app, archive)  # ditto keeps the signature intact
+    return archive
 
 
 if __name__ == "__main__":
-    OUT.write_bytes(build())
-    print(f"wrote {OUT.relative_to(ROOT)} ({OUT.stat().st_size // 1024} KB)")
+    if sys.platform != "darwin":
+        sys.exit("This needs a Mac.")
+    DIST.mkdir(exist_ok=True)
+    archive = zip_app(build_app(DIST))
+    print(f"wrote {archive.relative_to(ROOT)} ({archive.stat().st_size // 1024} KB)")

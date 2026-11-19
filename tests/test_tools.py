@@ -1,6 +1,8 @@
+import sys
 from pathlib import Path
 
 import numpy as np
+import pytest
 import soundfile as sf
 
 from choir_solfa import audio, shortcut, tools
@@ -40,17 +42,21 @@ def test_make_saves_into_a_folder_or_a_named_file(tmp_path):
     assert output_path(f"{tmp_path}/x/mine.pdf", "Song") == tmp_path / "x" / "mine.pdf"
 
 
-def test_mac_installer_download_is_current():
-    """docs/Install-Choir-Solfa-Mac.zip must match scripts/make_mac_installer.py."""
+@pytest.mark.skipif(sys.platform != "darwin", reason="the Mac installer is built on a Mac")
+def test_mac_installer_app_builds(tmp_path):
+    """scripts/make_mac_installer.py makes a working applet that runs launch.sh."""
     import importlib.util
-    import zipfile
-    from pathlib import Path
+    import plistlib
 
     path = Path(__file__).resolve().parent.parent / "scripts" / "make_mac_installer.py"
     spec = importlib.util.spec_from_file_location("make_mac_installer", path)
     maker = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(maker)
-    assert maker.OUT.read_bytes() == maker.build(), "run scripts/make_mac_installer.py again"
-    with zipfile.ZipFile(maker.OUT) as z:
-        program = z.getinfo("Install Choir Solfa.app/Contents/MacOS/install")
-        assert program.external_attr >> 16 == 0o100755
+    app = maker.build_app(tmp_path)
+    info = plistlib.loads((app / "Contents" / "Info.plist").read_bytes())
+    assert info["CFBundleIdentifier"] == "io.github.d-beloved.choir-solfa.installer"
+    resources = app / "Contents" / "Resources"
+    assert (resources / "launch.sh").stat().st_mode & 0o111
+    assert (resources / "applet.icns").exists()
+    assert (app / "Contents" / "MacOS" / "applet").read_bytes()[:4] in (b"\xca\xfe\xba\xbe", b"\xcf\xfa\xed\xfe")
+    assert maker.zip_app(app).stat().st_size > 10_000
