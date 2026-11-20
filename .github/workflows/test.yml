@@ -26,5 +26,5 @@ jobs:
             --index-url https://download.pytorch.org/whl/cpu -r cloud/worker-torch.txt
           uv pip install --python .venv --no-deps --require-hashes -r cloud/worker-requirements.txt
           uv pip install --python .venv --no-deps -e .
-      - run: uv pip install --python .venv pytest "moto[dynamodb,s3]"
+      - run: uv pip install --python .venv pytest httpx2 "moto[dynamodb,s3]"
       - run: uv run --no-project --python .venv python -m pytest -q
