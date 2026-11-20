@@ -1,6 +1,5 @@
 """Past songs are read back from their folders on disk."""
 import json
-import os
 
 from choir_solfa import server
 
@@ -32,59 +31,11 @@ def test_songs_are_listed_newest_first(tmp_path, monkeypatch):
 def test_only_known_hosts_are_answered():
     from fastapi.testclient import TestClient
 
-    client = TestClient(server.create_app(4790, ["Solfa.Example.com"]))
+    client = TestClient(server.create_app(4790))
     assert client.get("/", headers={"host": "127.0.0.1:4790"}).status_code == 200
-    assert client.get("/", headers={"host": "solfa.example.com"}).status_code == 200
+    assert client.get("/", headers={"host": "localhost:4790"}).status_code == 200
     assert client.get("/", headers={"host": "evil.example.com"}).status_code == 403
-    assert client.delete(f"/api/songs/{A}", headers={"host": "solfa.example.com"}).status_code == 403  # no token
-
-
-class Clock:
-    def __init__(self, now=1000.0):
-        self.now = now
-
-    def __call__(self):
-        return self.now
-
-
-def test_restarts_only_when_idle_after_a_song(monkeypatch):
-    clock = Clock()
-    monkeypatch.setattr(server.time, "time", clock)
-    jobs = server.Jobs()
-    r = server.Restarter(jobs, quiet=120, stamp=lambda: 1.0, clock=clock)
-    assert r.reason() is None  # nothing happened yet
-    jobs.add(A, title="x")
-    jobs.update(A, status="working")
-    clock.now += 600
-    assert r.reason() is None  # never during a song
-    jobs.update(A, status="done")
-    clock.now += 60
-    assert r.reason() is None  # the page may still be fetching the score
-    clock.now += 61
-    assert "song" in r.reason()
-    r.touch()  # someone opened the page
-    assert r.reason() is None
-
-
-def test_restarts_after_code_settles():
-    clock = Clock()
-    stamp = [1.0]
-    r = server.Restarter(server.Jobs(), quiet=120, settle=10, stamp=lambda: stamp[0], clock=clock)
-    clock.now += 200
-    assert r.reason() is None
-    stamp[0] = clock.now - 3  # just saved a file
-    assert r.reason() is None
-    clock.now += 10
-    assert r.reason() == "the code changed"
-
-
-def test_token_survives_restarts_only_when_asked(tmp_path, monkeypatch):
-    monkeypatch.setattr(server, "HOME", tmp_path)
-    first = server._token(persist=True)
-    assert server._token(persist=True) == first
-    if os.name != "nt":  # Windows files have no Unix permission bits
-        assert oct((tmp_path / "token").stat().st_mode & 0o777) == "0o600"
-    assert server._token(persist=False) != first
+    assert client.delete(f"/api/songs/{A}", headers={"host": "127.0.0.1:4790"}).status_code == 403  # no token
 
 
 def test_a_forgotten_job_comes_back_from_disk(tmp_path, monkeypatch):
@@ -100,29 +51,25 @@ def test_a_forgotten_job_comes_back_from_disk(tmp_path, monkeypatch):
     assert server._job_from_disk("../etc") is None
 
 
-def test_desktop_app_quits_only_when_no_page_is_open():
-    jobs = server.Jobs()
-    clock = Clock()
-    closer = server.Closer(jobs, after=900, clock=clock)
-    clock.now += 899
-    assert closer.reason() is None
-    closer.touch()  # an open page pings
-    clock.now += 899
-    assert closer.reason() is None
-    clock.now += 2
-    assert "15 minutes" in closer.reason()
-    jobs.add("busy")
-    assert closer.reason() is None  # never while a song is being made
 
 
-def test_ping_keeps_desktop_app_but_not_restart_alive(monkeypatch, tmp_path):
+def test_the_privacy_page_is_served_and_linked():
     from fastapi.testclient import TestClient
 
-    monkeypatch.setattr(server, "HOME", tmp_path)  # the restart mode saves its token there
-    app = server.create_app(4790, restart_when_idle=True, quit_when_closed=True)
-    client = TestClient(app, base_url="http://127.0.0.1:4790")
-    app.state.restarter.last_request = 0
-    app.state.closer.last_seen = 0
-    assert client.get("/api/ping").json() == {"app": "choir-solfa"}
-    assert app.state.restarter.last_request == 0
-    assert app.state.closer.last_seen > 0
+    client = TestClient(server.create_app(4790))
+    page = client.get("/privacy.html", headers={"host": "127.0.0.1:4790"})
+    assert page.status_code == 200 and "Privacy policy" in page.text
+    assert 'href="/privacy.html"' in client.get("/", headers={"host": "127.0.0.1:4790"}).text
+
+
+def test_the_website_settings_stay_out_of_the_scripts():
+    # The website's security policy allows the page's scripts by hash (infra/stack.py), so the
+    # settings the deploy fills in must only be in the JSON block, which isn't run.
+    import re
+
+    page = (server.WEB / "index.html").read_text(encoding="utf-8")
+    scripts = re.findall(r"<script>(.*?)</script>", page, flags=re.S)
+    assert len(scripts) == 2 and not any("__CLOUD__" in s for s in scripts)
+    assert page.count("__CLOUD__") == 1
+    assert '<script type="application/json" id="cloud-config">__CLOUD__</script>' in page
+    assert "<script " not in page.replace('<script type="application/json" id="cloud-config">', "")

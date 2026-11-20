@@ -29,7 +29,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["pytest"]
+dev = ["pytest", "boto3", "moto[dynamodb,s3]"]  # boto3 and moto test the website code in cloud/
 
 [project.scripts]
 choir-solfa = "choir_solfa.cli:main"

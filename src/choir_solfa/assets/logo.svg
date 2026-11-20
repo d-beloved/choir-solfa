@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <title>Choir Solfa</title>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#262a52"/>
+      <stop offset="1" stop-color="#1a1d3a"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="115" fill="url(#bg)"/><rect x="1.5" y="1.5" width="509" height="509" rx="114" fill="none" stroke="#ffffff" stroke-opacity=".08" stroke-width="3"/>
+  <g fill="none" stroke-width="20" stroke-linecap="round" stroke-linejoin="round" transform="translate(256.0,256.0) scale(1.12) translate(-256.0,-256.0)">
+    <path d="M314.0,94.0 L256.0,94.0 A102,102 0 0 0 154.0,196.0 A102,102 0 0 0 256.0,298.0 A18,18 0 0 1 274.0,316.0 A18,18 0 0 1 256.0,334.0 L198.0,334.0" stroke="#e9483b"/>
+    <path d="M314.0,122.0 L256.0,122.0 A74,74 0 0 0 182.0,196.0 A74,74 0 0 0 256.0,270.0 A46,46 0 0 1 302.0,316.0 A46,46 0 0 1 256.0,362.0 L198.0,362.0" stroke="#f2b51f"/>
+    <path d="M314.0,150.0 L256.0,150.0 A46,46 0 0 0 210.0,196.0 A46,46 0 0 0 256.0,242.0 A74,74 0 0 1 330.0,316.0 A74,74 0 0 1 256.0,390.0 L198.0,390.0" stroke="#1fa3b6"/>
+    <path d="M314.0,178.0 L256.0,178.0 A18,18 0 0 0 238.0,196.0 A18,18 0 0 0 256.0,214.0 A102,102 0 0 1 358.0,316.0 A102,102 0 0 1 256.0,418.0 L198.0,418.0" stroke="#4a6fd8"/>
+  </g>
+</svg>
+

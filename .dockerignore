@@ -1,0 +1,11 @@
+# Only what the cloud worker image needs (cloud/worker.Dockerfile).
+*
+!pyproject.toml
+!README.md
+!LICENSE
+!src
+!cloud/worker.Dockerfile
+!cloud/worker-torch.txt
+!cloud/worker-requirements.txt
+**/__pycache__
+**/.DS_Store

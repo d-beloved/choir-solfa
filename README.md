@@ -1,70 +1,35 @@
 # Choir Solfa
 
-**Website and download: [d-beloved.github.io/choir-solfa](https://d-beloved.github.io/choir-solfa/)**
+**Use it at [solfa.morayodeji.dev](https://solfa.morayodeji.dev)**
 
-![The first bars of Silent Night as written out by Choir Solfa](docs/score.png)
+![The first bars of Silent Night as written out by Choir Solfa](.github/score.png)
 
 Give it a song (a link or an audio file). Get the tonic solfa for soprano, alto, tenor and bass as a printable PDF, plus a text version and a MIDI file to practise with.
 
 - **A choir singing parts:** each part is transcribed as it was sung.
 - **One lead singer:** the melody becomes the soprano line, and alto, tenor and bass are written as a hymn-style arrangement under it.
 
-Everything runs on your own computer (Mac or Windows). Nothing is uploaded anywhere except the download from the link you give it.
+## The website
 
-## Install
+Open [solfa.morayodeji.dev](https://solfa.morayodeji.dev) on a phone or computer and make an account with your email and a password. Your songs are private to your account. Each score can be downloaded for 15 days; the list of songs you've made stays.
 
-Go to **[d-beloved.github.io/choir-solfa](https://d-beloved.github.io/choir-solfa/)** and download the installer for your computer. Nothing else needs installing first.
+The website runs on AWS. How it is built, and how to deploy your own copy, are in [infra/README.md](infra/README.md).
 
-You need a Mac (Apple Silicon, M1 or newer, works best; Intel Macs are slower) or a 64-bit Windows PC, with about 3 GB of free space and 8 GB of memory or more.
+## Run it on your own computer
 
-**Mac:** download [Install-Choir-Solfa-Mac.zip](https://github.com/d-beloved/choir-solfa/releases/download/mac-installer/Install-Choir-Solfa-Mac.zip), open it and double-click **Install Choir Solfa**. The installer isn't signed by Apple yet, so the first time your Mac says it can't check it. Click Done, then go to System Settings → Privacy & Security and click **Open Anyway**. (On macOS 14 or older: Control-click the installer, choose Open, then Open again.)
-
-**Windows:** download [install-choir-solfa.cmd](https://d-beloved.github.io/choir-solfa/install-choir-solfa.cmd) and double-click it. If Windows says it protected your PC, click **More info**, then **Run anyway**.
-
-A window shows the install as it goes. The first install downloads about 1 to 1.5 GB and takes a few minutes. When it finishes, **Choir Solfa** is in your Applications (Mac: Launchpad or Spotlight) or in the Start menu and on the desktop (Windows), and the page opens in your web browser.
-
-<details>
-<summary>Prefer to type? Install from Terminal or PowerShell instead</summary>
-
-This is what the installers run. On a Mac it avoids the security warning.
-
-**Mac:** open Terminal (press ⌘ Space, type Terminal), paste this line and press Return:
-
-```bash
-curl -LsSf https://raw.githubusercontent.com/d-beloved/choir-solfa/main/install.sh | sh
-```
-
-**Windows:** open PowerShell (Start menu, type PowerShell), paste this line and press Enter:
-
-```powershell
-powershell -ExecutionPolicy ByPass -c "irm https://raw.githubusercontent.com/d-beloved/choir-solfa/main/install.ps1 | iex"
-```
-
-</details>
-
-- Click the icon whenever you want to use it. It runs quietly in the background and stops by itself 15 minutes after you close the page.
-- The first song takes a little longer, because it downloads the voice-separation model (about 80 MB).
-- Your songs stay on your computer, in the `.choir-solfa` folder in your home folder.
-- **To update**, download and open the installer again (or run the same line again).
-- **To remove it**, run `choir-solfa shortcut --remove`, then `uv tool uninstall choir-solfa`. Delete the `.choir-solfa` folder too if you don't want to keep your songs.
-
-The installer uses [uv](https://docs.astral.sh/uv/) to get its own copy of Python and the app, so it doesn't touch any other Python on your computer. ffmpeg (to read audio) and Deno (which YouTube downloads need) come with the app. The Mac installer is a small app made by `scripts/make_mac_installer.py` and published on the [mac-installer release](https://github.com/d-beloved/choir-solfa/releases/tag/mac-installer) by GitHub Actions: it opens Terminal and runs `install.sh`, so it always installs the latest version.
-
-## Development setup
+The same app also runs on a Mac or Windows PC, with nothing uploaded anywhere except the download from the link you give it. You need Python 3.11 (uv gets it for you), about 3 GB of free space and 8 GB of memory or more. Apple Silicon Macs are fastest.
 
 ```bash
 uv venv --python 3.11 .venv
 uv pip install -e ".[dev]"
 ```
 
-On Apple Silicon, use a native arm64 Python 3.11. uv downloads one if needed. An x86 Python running under Rosetta is much slower and can't use the Core ML note model.
+On Apple Silicon, use a native arm64 Python 3.11. uv downloads one if needed. An x86 Python running under Rosetta is much slower and can't use the Core ML note model. ffmpeg (to read audio) and Deno (which YouTube downloads need) come with the app.
 
-## Use it
-
-Click the Choir Solfa icon, or from a terminal:
+Start the page:
 
 ```bash
-choir-solfa            # or .venv/bin/choir-solfa in a development setup
+.venv/bin/choir-solfa
 ```
 
 The page opens at http://127.0.0.1:4790. Paste a link (Spotify, YouTube and most sites yt-dlp supports) or drop an MP3, WAV, M4A or video file anywhere on the page. A 4-minute song takes about 2 to 4 minutes.
@@ -72,18 +37,6 @@ The page opens at http://127.0.0.1:4790. Paste a link (Spotify, YouTube and most
 Every score you make is listed under **Your songs** on the page, newest first, so you can open, download or print it again later, even after closing the app. Reloading the page keeps you on the song you were looking at, or the one still being made. Scores are kept in `~/.choir-solfa/jobs/`, one folder per song. The × next to a song deletes its folder, after asking first.
 
 The page checks the link as you paste it. It tells you, for example, when a Spotify link is a playlist or album rather than one song. When a score is ready, "Doesn't look right?" offers one-click fixes: switch between choir and lead singer, or change the time signature. Each fix makes the score again from the same song.
-
-### Opening it from your phone
-
-The page only answers on your own Mac. To reach it from elsewhere, put a tunnel such as Cloudflare Tunnel in front and tell the app the public address:
-
-```bash
-.venv/bin/choir-solfa serve --no-open --public-host solfa.example.com
-```
-
-(or set `CHOIR_SOLFA_PUBLIC_HOST`). Anyone who can open the page can make and delete songs, so put a login in front of the address, for example Cloudflare Access with email codes.
-
-To keep it running in the background, start it from a service manager such as launchd with `--restart-when-idle` added. The app then quits itself once nobody has used it for two minutes after a song or a code change, and the service manager starts a fresh copy. That picks up code changes and gives back the 2 GB or so of memory the note models keep after a song. It never quits while a song is being made.
 
 ### Spotify links
 
@@ -94,9 +47,9 @@ Spotify's audio is protected, so it can't be downloaded. Instead, the tool reads
 From the command line:
 
 ```bash
-choir-solfa make "https://open.spotify.com/track/..." -o out/
-choir-solfa make "https://www.youtube.com/watch?v=..." -o out/
-choir-solfa make song.mp3 --mode solo --time 3/4 --title "Silent Night"
+.venv/bin/choir-solfa make "https://open.spotify.com/track/..." -o out/
+.venv/bin/choir-solfa make "https://www.youtube.com/watch?v=..." -o out/
+.venv/bin/choir-solfa make song.mp3 --mode solo --time 3/4 --title "Silent Night"
 ```
 
 `--mode` is `auto`, `choir` or `solo`. `--time` is `auto`, `4/4`, `3/4`, `2/4` or `6/8`.
@@ -161,11 +114,9 @@ This is automatic transcription. Treat the result as a first draft and check eve
 .venv/bin/python -m pytest -q
 ```
 
-GitHub Actions runs these on macOS and Windows, and also runs the installers on Apple Silicon, Intel Mac and Windows machines and makes a score from a test recording (`scripts/smoke.py`).
+GitHub Actions runs these on macOS and Windows.
 
-The code is under `src/choir_solfa/`. `pipeline.py` runs the steps above, `server.py` and `web/index.html` are the page, and `pdf.py` and `notation.py` lay out the score.
-
-The website is `docs/index.html`, published by GitHub Pages from the `docs/` folder on `main`. Preview it with `.venv/bin/python -m http.server 4794 --directory docs`.
+The code is under `src/choir_solfa/`. `pipeline.py` runs the steps above, `server.py` and `web/index.html` are the page, and `pdf.py` and `notation.py` lay out the score. The website's API is `cloud/api/handler.py`, the song maker it starts is `cloud_worker.py`, and `infra/` creates it all on AWS.
 
 ## License
 

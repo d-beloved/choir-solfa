@@ -18,17 +18,10 @@ def main(argv: list[str] | None = None) -> int:
     serve = sub.add_parser("serve", help="start the page in your browser (default)")
     serve.add_argument("--port", type=int, default=int(os.environ.get("CHOIR_SOLFA_PORT", 4790)))
     serve.add_argument("--no-open", action="store_true", help="do not open the browser")
-    serve.add_argument("--public-host", action="append", default=None, metavar="NAME",
-                       help="also answer at this address, e.g. solfa.example.com through a Cloudflare Tunnel "
-                            "(or set CHOIR_SOLFA_PUBLIC_HOST); keep a login such as Cloudflare Access in front")
-    serve.add_argument("--restart-when-idle", action="store_true",
-                       help="quit when idle after a song or a code change, so a service manager such as "
-                            "launchd starts a fresh copy (picks up code changes and frees memory)")
-    serve.add_argument("--quit-when-closed", action="store_true",
-                       help="quit 15 minutes after the last page is closed (used by the desktop launcher)")
-
-    shortcut = sub.add_parser("shortcut", help="add a Choir Solfa icon to Applications (Mac) or the Start menu (Windows)")
-    shortcut.add_argument("--remove", action="store_true", help="take the icon away again")
+    # Accepted and ignored, so shortcuts made by the old installers still start the page.
+    for old in ("--quit-when-closed", "--restart-when-idle"):
+        serve.add_argument(old, action="store_true", help=argparse.SUPPRESS)
+    serve.add_argument("--public-host", action="append", help=argparse.SUPPRESS)
 
     make = sub.add_parser("make", help="make a PDF from a file or link without the page")
     make.add_argument("song", help="audio/video file or a link to the song")
@@ -40,25 +33,8 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     if args.cmd == "make":
         return _make(args)
-    if args.cmd == "shortcut":
-        return _shortcut(args)
     from .server import serve as run_server
-    return run_server(port=getattr(args, "port", int(os.environ.get("CHOIR_SOLFA_PORT", 4790))), open_browser=not getattr(args, "no_open", False),
-                      public_hosts=getattr(args, "public_host", None),
-                      restart_when_idle=getattr(args, "restart_when_idle", False),
-                      quit_when_closed=getattr(args, "quit_when_closed", False))
-
-
-def _shortcut(args) -> int:
-    from . import shortcut
-
-    if args.remove:
-        gone = shortcut.remove()
-        print("Removed: " + ", ".join(map(str, gone)) if gone else "There was no Choir Solfa icon to remove.")
-        return 0
-    for place in shortcut.make():
-        print(f"Added {place}")
-    return 0
+    return run_server(port=getattr(args, "port", int(os.environ.get("CHOIR_SOLFA_PORT", 4790))), open_browser=not getattr(args, "no_open", False))
 
 
 def output_path(out: str | None, name: str) -> Path:

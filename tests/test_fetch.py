@@ -37,3 +37,43 @@ def test_candidate_ranking_prefers_same_recording():
              dict(same=same, other_choir=other_choir, karaoke=karaoke, longer=longer).items()}
     assert costs["same"] < costs["other_choir"] < costs["karaoke"]
     assert costs["same"] < costs["longer"]
+
+
+def test_youtube_refusal_gets_plain_words():
+    from choir_solfa import fetch
+
+    bot = Exception("ERROR: [youtube] CZmC4qqL_Rg: Sign in to confirm you’re not a bot. This helps protect our community.")
+    assert fetch._refused(bot)
+    assert not fetch._refused(Exception("ERROR: Video unavailable"))
+    assert "Choose an audio file" in fetch.REFUSED
+
+
+def test_links_use_the_proxy_when_one_is_set(monkeypatch):
+    from choir_solfa import fetch
+    monkeypatch.delenv("CHOIR_SOLFA_PROXY", raising=False)
+    assert fetch._proxy() == {}
+    monkeypatch.setenv("CHOIR_SOLFA_PROXY", "http://127.0.0.1:1080")
+    assert fetch._proxy() == {"proxy": "http://127.0.0.1:1080"}
+
+
+def test_spotify_pages_are_read_through_the_proxy_and_stay_on_spotify(monkeypatch):
+    import urllib.error
+    import urllib.request
+
+    from choir_solfa import fetch
+    monkeypatch.setenv("CHOIR_SOLFA_PROXY", "http://127.0.0.1:1080")
+    built = []
+    real_build = urllib.request.build_opener
+    monkeypatch.setattr(urllib.request, "build_opener", lambda *h: built.append(h) or real_build(*h))
+    monkeypatch.setattr(urllib.request.OpenerDirector, "open", lambda self, req, timeout=None: None)
+    fetch._open(urllib.request.Request("https://open.spotify.com/track/x"))
+    proxy = next(h for h in built[0] if isinstance(h, urllib.request.ProxyHandler))
+    assert proxy.proxies == {"http": "http://127.0.0.1:1080", "https": "http://127.0.0.1:1080"}
+
+    redirects = fetch._SpotifyRedirects()
+    req = urllib.request.Request("https://spotify.link/abc")
+    for good in ("https://open.spotify.com/track/x", "https://spotify.app.link/abc"):
+        assert redirects.redirect_request(req, None, 302, "Found", {}, good) is not None
+    for bad in ("http://open.spotify.com/track/x", "https://169.254.169.254/latest", "https://evil.example/spotify.com"):
+        with pytest.raises(urllib.error.HTTPError):
+            redirects.redirect_request(req, None, 302, "Found", {}, bad)

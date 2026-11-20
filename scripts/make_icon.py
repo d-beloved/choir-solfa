@@ -1,15 +1,11 @@
-"""Draw the app icon (src/choir_solfa/assets/icon.png, .icns and .ico). macOS only: uses Georgia and iconutil.
+"""Draw the app icon (src/choir_solfa/assets/icon.png), used by the page and the sign-in page. macOS only: uses Georgia.
 
     .venv/bin/python scripts/make_icon.py
 """
-import shutil
-import subprocess
-import tempfile
 from pathlib import Path
 
 from PIL import Image, ImageDraw, ImageFont
 
-S = Path(tempfile.mkdtemp())
 A = Path(__file__).resolve().parent.parent / "src" / "choir_solfa" / "assets"
 N, climb, gap = 1024, 95, 18
 font = ImageFont.truetype("/System/Library/Fonts/Supplemental/Georgia Bold.ttf", 270)
@@ -40,9 +36,3 @@ for i, c in enumerate(letters):
     d.text((x - bbox[c][0], base - i * climb), c, font=font, fill=(255, 250, 244, 255), anchor="ls")
     x += widths[i] + gap
 img.save(A / "icon.png")
-iconset = S / "icon.iconset"; shutil.rmtree(iconset, ignore_errors=True); iconset.mkdir()
-for size in (16, 32, 128, 256, 512):
-    img.resize((size, size), Image.LANCZOS).save(iconset / f"icon_{size}x{size}.png")
-    img.resize((size * 2, size * 2), Image.LANCZOS).save(iconset / f"icon_{size}x{size}@2x.png")
-subprocess.run(["iconutil", "-c", "icns", str(iconset), "-o", str(A / "icon.icns")], check=True)
-img.crop((100, 100, 924, 924)).save(A / "icon.ico", sizes=[(16, 16), (24, 24), (32, 32), (48, 48), (64, 64), (128, 128), (256, 256)])

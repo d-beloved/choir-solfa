@@ -2,8 +2,11 @@
 from __future__ import annotations
 
 import html
+import os
 import re
 import shutil
+import time
+import urllib.error
 import urllib.request
 from dataclasses import dataclass
 from pathlib import Path
@@ -14,6 +17,7 @@ from . import tools
 
 MAX_MINUTES = 15
 MAX_BYTES = 300 * 1024 * 1024
+DOWNLOAD_SECONDS = 15 * 60  # a download slower than this is given up (a song is at most MAX_BYTES)
 
 
 class FetchError(Exception):
@@ -177,11 +181,13 @@ def find_on_youtube(track: SpotifyTrack, max_off: float = 8.0) -> dict:
     import yt_dlp
 
     query = f"ytsearch10:{track.artist} - {track.title}" if track.artist else f"ytsearch10:{track.title}"
-    opts = {"quiet": True, "no_warnings": True, "extract_flat": "in_playlist", "js_runtimes": tools.js_runtimes()}
+    opts = {"quiet": True, "no_warnings": True, "extract_flat": "in_playlist", "js_runtimes": tools.js_runtimes(), **_proxy()}
     try:
         with yt_dlp.YoutubeDL(opts) as ydl:
             entries = list((ydl.extract_info(query, download=False) or {}).get("entries") or [])
     except yt_dlp.utils.DownloadError as e:
+        if _refused(e):
+            raise FetchError(REFUSED) from e
         raise FetchError(f"Couldn't search YouTube for this song. {_short(e)}") from e
     ranked = sorted((score_candidate(track, e), i, e) for i, e in enumerate(entries))
     for cost, _, entry in ranked:
@@ -195,10 +201,30 @@ def find_on_youtube(track: SpotifyTrack, max_off: float = 8.0) -> dict:
                      "Upload the song file instead, or paste a YouTube link to it.")
 
 
+class _SpotifyRedirects(urllib.request.HTTPRedirectHandler):
+    """Follow redirects only to Spotify's own https addresses (short links go via spotify.app.link)."""
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        parts = urlparse(newurl)
+        host = (parts.hostname or "").lower()
+        if parts.scheme != "https" or not (host in _SPOTIFY_HOSTS or host.endswith((".spotify.com", ".spotify.link"))
+                                           or host == "spotify.app.link"):
+            raise urllib.error.HTTPError(newurl, code, "redirect away from Spotify", headers, fp)
+        return super().redirect_request(req, fp, code, msg, headers, newurl)
+
+
+def _open(req: urllib.request.Request, timeout: float = 20):
+    """Open a Spotify address, through the WARP tunnel on the website (like every other fetch)."""
+    proxy = os.environ.get("CHOIR_SOLFA_PROXY")
+    handlers = [_SpotifyRedirects()]
+    if proxy:  # otherwise the computer's own proxy settings, as before
+        handlers.append(urllib.request.ProxyHandler({"http": proxy, "https": proxy}))
+    return urllib.request.build_opener(*handlers).open(req, timeout=timeout)
+
+
 def _get(url: str) -> str:
     req = urllib.request.Request(url, headers={"User-Agent": _UA, "Accept-Language": "en"})
     try:
-        with urllib.request.urlopen(req, timeout=20) as r:
+        with _open(req) as r:
             return r.read(2_000_000).decode("utf-8", "replace")
     except OSError as e:
         raise FetchError("Couldn't reach Spotify. Check your internet connection and try again.") from e
@@ -207,7 +233,7 @@ def _get(url: str) -> str:
 def _resolve_redirect(url: str) -> str:
     req = urllib.request.Request(url, headers={"User-Agent": _UA})
     try:
-        with urllib.request.urlopen(req, timeout=20) as r:
+        with _open(req) as r:
             final = r.geturl()
             if (urlparse(final).hostname or "") == "open.spotify.com":
                 return final
@@ -224,15 +250,25 @@ def download(url: str, dest: Path) -> tuple[Path, str]:
 
     if not is_url(url):
         raise FetchError("That does not look like a web link. It should start with http:// or https://.")
+    started = time.monotonic()
+
+    def too_slow(status: dict) -> None:
+        if status.get("status") == "downloading" and time.monotonic() - started > DOWNLOAD_SECONDS:
+            raise yt_dlp.utils.DownloadError("too slow")
+
     opts = {
         "format": "bestaudio/best",
         "outtmpl": str(dest / "source.%(ext)s"),
         "noplaylist": True,
         "quiet": True,
+        "noprogress": True,
         "no_warnings": True,
         "max_filesize": MAX_BYTES,
+        "socket_timeout": 30,
+        "progress_hooks": [too_slow],
         "js_runtimes": tools.js_runtimes(),  # YouTube needs a JavaScript runtime
         "ffmpeg_location": tools.ffmpeg(),
+        **_proxy(),
     }
     try:
         with yt_dlp.YoutubeDL(opts) as ydl:
@@ -245,6 +281,10 @@ def download(url: str, dest: Path) -> tuple[Path, str]:
             info = ydl.extract_info(url, download=True)
             path = Path(ydl.prepare_filename(info))
     except yt_dlp.utils.DownloadError as e:
+        if _refused(e):
+            raise FetchError(REFUSED) from e
+        if time.monotonic() - started > DOWNLOAD_SECONDS:
+            raise FetchError("That link was far too slow to download. Try another link, or upload the song file.") from e
         raise FetchError(f"Could not download that link. {_short(e)}") from e
     if not path.exists():
         found = sorted(dest.glob("source.*"))
@@ -259,6 +299,22 @@ def use_upload(src: Path, dest: Path, original_name: str) -> tuple[Path, str]:
     target = dest / f"source{suffix}"
     shutil.copyfile(src, target)
     return target, Path(original_name).stem or "Untitled song"
+
+
+def _proxy() -> dict:
+    """On the website, links go through a Cloudflare WARP tunnel (see cloud_worker), since YouTube refuses AWS."""
+    proxy = os.environ.get("CHOIR_SOLFA_PROXY")
+    return {"proxy": proxy} if proxy else {}
+
+
+REFUSED = ("YouTube would not let us download this song. Save the song on your phone or computer, "
+           "then use Choose an audio file instead.")
+
+
+def _refused(e: Exception) -> bool:
+    """YouTube asks servers (such as the website's) to sign in to prove they aren't robots."""
+    text = str(e).lower()
+    return "confirm you" in text and "not a bot" in text or "sign in to confirm" in text
 
 
 def _short(e: Exception) -> str:

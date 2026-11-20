@@ -6,3 +6,8 @@ jobs/
 *.egg-info/
 build/
 dist/
+infra/.venv/
+infra/cdk.out/
+infra/cdk.context.json
+infra/NOTES.local.md
+CLAUDE.local.md
