@@ -98,8 +98,8 @@
 
   a { color: var(--primary-deep); }
   [data-theme="dark"] a { color: var(--primary); }
-  .shell { position: relative; z-index: 1; max-width: 1040px; margin: 0 auto; padding: 48px 16px 80px; display: grid;
-           grid-template-columns: 112px minmax(0, 1fr); gap: 40px; }
+  .shell { position: relative; z-index: 1; max-width: 1040px; margin: 0 auto; padding: 18px 16px 80px; display: grid;
+           grid-template-columns: 112px minmax(0, 1fr); gap: 34px 40px; }
 
   /* The modulator: the solfa ladder, spaced in tones and semitones, one colour per note. */
   .modulator { position: sticky; top: 40px; align-self: start; display: flex; flex-direction: column-reverse;
@@ -125,8 +125,8 @@
   .modulator .semi { margin-bottom: 5px; }
   .modulator sup { font-size: .55em; margin-left: 1px; align-self: flex-start; margin-top: 7px; }
 
-  header h1 { font-family: var(--display); font-weight: 800; font-size: clamp(42px, 6.4vw, 64px); line-height: 1;
-              letter-spacing: -.02em; margin: 0; }
+  .intro h1 { font-family: var(--display); font-weight: 800; font-size: clamp(34px, 5.4vw, 54px); line-height: 1.05;
+              letter-spacing: -.02em; margin: 0; text-wrap: balance; }
   .rainbow i { font-style: normal; display: inline-block; }
   .rainbow i:nth-child(1) { color: var(--n-d); } .rainbow i:nth-child(2) { color: var(--n-r); }
   .rainbow i:nth-child(3) { color: var(--n-m); } .rainbow i:nth-child(4) { color: var(--n-f); }
@@ -135,10 +135,9 @@
   .rainbow i:nth-child(2) { animation-delay: .06s !important; } .rainbow i:nth-child(3) { animation-delay: .12s !important; }
   .rainbow i:nth-child(4) { animation-delay: .18s !important; } .rainbow i:nth-child(5) { animation-delay: .24s !important; }
   @keyframes hop { from { transform: translateY(14px); opacity: 0; } }
-  .title-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
   /* Light / dark switch: a sliding knob carrying a sun or a moon. */
   .theme-switch { all: unset; flex: none; cursor: pointer; position: relative; width: 68px; height: 36px; border-radius: 99px;
-                  background: var(--sun-soft); box-shadow: inset 0 0 0 2px var(--rule); margin-top: 8px;
+                  background: var(--sun-soft); box-shadow: inset 0 0 0 2px var(--rule);
                   transition: background .3s; }
   .theme-switch .knob { position: absolute; top: 4px; left: 4px; width: 28px; height: 28px; border-radius: 50%;
                         display: grid; place-items: center; background: var(--sun); color: #5a3a00;
@@ -152,7 +151,7 @@
   .theme-switch[aria-checked="true"] .sun { display: none; }
   .theme-switch[aria-checked="true"] .moon { display: block; }
   .theme-switch:focus-visible { outline: 3px solid var(--teal); outline-offset: 3px; }
-  header p { font-size: 19px; color: var(--muted); margin: 14px 0 0; max-width: 34em; }
+  .intro p { font-size: 19px; color: var(--muted); margin: 14px 0 0; max-width: 34em; }
   .steps { list-style: none; display: flex; flex-wrap: wrap; gap: 10px 22px; padding: 0; margin: 22px 0 30px;
            font-size: 15px; color: var(--muted); }
   .steps li { display: inline-flex; align-items: center; gap: 8px; }
@@ -181,11 +180,11 @@
   button.danger { background: var(--primary-deep); box-shadow: 0 5px 0 #8f2c19; }
 
   /* How to read the score */
-  dialog.guide { width: min(740px, calc(100vw - 32px)); max-height: calc(100dvh - 40px); padding: 0; border: 1px solid var(--rule);
+  dialog.guide, dialog.panel { width: min(740px, calc(100vw - 32px)); max-height: calc(100dvh - 40px); padding: 0; border: 1px solid var(--rule);
                  border-radius: 26px; background: var(--card); color: var(--ink); box-shadow: 0 30px 80px -20px rgba(0, 0, 0, .5);
                  overflow: auto; overscroll-behavior: contain; }
-  dialog.guide::backdrop { background: rgba(19, 21, 42, .5); backdrop-filter: blur(3px); }
-  dialog.guide[open] { animation: rise .3s cubic-bezier(.2, .7, .2, 1); }
+  dialog.guide::backdrop, dialog.panel::backdrop { background: rgba(19, 21, 42, .5); backdrop-filter: blur(3px); }
+  dialog.guide[open], dialog.panel[open] { animation: rise .3s cubic-bezier(.2, .7, .2, 1); }
   .guide-head { position: sticky; top: 0; z-index: 1; display: flex; justify-content: space-between; align-items: center; gap: 12px;
                 padding: 22px 28px 14px; background: var(--card); border-bottom: 2px dashed var(--rule); }
   .guide-head h2 { font-family: var(--display); font-weight: 700; font-size: 26px; margin: 0; }
@@ -315,9 +314,25 @@
   .failed { border: 2px solid var(--primary); }
   .fail-msg { font-size: 17px; margin: 6px 0 18px; }
 
-  /* Your songs */
-  .songs-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
-  .songs-count { color: var(--muted); font-size: 14px; font-weight: 600; }
+  /* Your songs: a pop-up list, a page at a time */
+  dialog.panel { width: min(620px, calc(100vw - 24px)); }
+  .panel .guide-body { padding-top: 14px; }
+  .panel .sub { margin-bottom: 10px; }
+  .tabs { display: flex; gap: 6px; padding: 4px; margin: 0 0 14px; border-radius: 99px; background: var(--bg); border: 1px solid var(--rule); }
+  .tabs button { all: unset; box-sizing: border-box; flex: 1; text-align: center; cursor: pointer; padding: 8px 12px; border-radius: 99px;
+                 font-size: 15px; font-weight: 600; color: var(--muted); }
+  .tabs button[aria-selected="true"] { background: var(--card); color: var(--ink); box-shadow: 0 1px 0 var(--rule), 0 2px 8px -4px rgba(30, 33, 64, .3); }
+  .tabs button:focus-visible { outline: 3px solid var(--teal); outline-offset: 2px; }
+  .empty { color: var(--muted); margin: 6px 0 0; }
+  /* Stays in view at the bottom of the box while the page of songs scrolls. */
+  .pager { position: sticky; bottom: 0; display: flex; align-items: center; justify-content: space-between; gap: 10px;
+           margin: 8px -28px -30px; padding: 12px 28px 16px; background: var(--card);
+           border-top: 1.5px solid var(--rule); font-size: 14px; color: var(--muted); }
+  .panel .song-open { padding: 9px 8px; margin: 2px 0; }
+  @media (max-width: 520px) { .panel .guide-body { padding: 12px 18px 30px; } .panel .guide-head { padding: 18px 18px 12px; }
+                              .pager { margin: 8px -18px -30px; padding: 10px 18px 14px; } }
+  .pager button.quiet { padding: 7px 14px; font-size: 14px; }
+  .pager button.quiet:disabled { opacity: .4; cursor: default; border-color: var(--rule); color: var(--ink); background: var(--card); }
   .song-list { list-style: none; margin: 0; padding: 0; }
   .song-list li { --c: var(--n-d); display: flex; align-items: center; gap: 6px; border-top: 1.5px solid var(--rule); }
   .song-list li:nth-child(5n+2) { --c: var(--n-m); } .song-list li:nth-child(5n+3) { --c: var(--n-s); }
@@ -334,7 +349,6 @@
   .song-remove { all: unset; flex: none; cursor: pointer; width: 34px; height: 34px; border-radius: 10px; display: grid; place-items: center;
                  color: var(--muted); font-size: 20px; }
   .song-remove:hover, .song-remove:focus-visible { background: var(--primary-soft); color: var(--primary); }
-  .songs .more { margin-top: 10px; }
   @media (max-width: 520px) { .song-open { grid-template-columns: 38px minmax(0, 1fr); } .song-open time { display: none; } }
 
   /* Result */
@@ -366,10 +380,17 @@
   .drop-veil div { font-family: var(--display); font-weight: 700; font-size: 34px; color: var(--primary); }
   body.dropping .drop-veil { display: grid; }
 
+  /* The bar across the top of the app: the name on the left; songs, light / dark and the account on the right. */
+  .appbar { grid-column: 1 / -1; display: flex; align-items: center; justify-content: space-between; gap: 12px; min-width: 0; }
+  .appbar-end { flex: none; display: flex; align-items: center; gap: 10px; }
+  button.songs-btn { padding: 7px 10px 7px 13px; gap: 7px; }
+  .songs-btn svg { width: 17px; height: 17px; flex: none; }
+  .songs-btn-count { min-width: 24px; height: 24px; padding: 0 7px; border-radius: 99px; display: inline-grid; place-items: center;
+                     background: var(--primary-soft); color: var(--primary-deep); font-size: 13px; font-weight: 700; }
+  [data-theme="dark"] .songs-btn-count { color: var(--primary); }
+
   /* Signed in (on the website) */
   /* Top right: a round badge with the email's first letter, in one of the note colours. */
-  .title-end { flex: none; display: flex; align-items: center; gap: 12px; margin-top: 8px; }
-  .title-end .theme-switch { margin-top: 0; }
   .account { position: relative; }
   .avatar { --c: var(--n-d); --on: #fff; all: unset; box-sizing: border-box; display: grid; place-items: center; flex: none;
             width: 40px; height: 40px; border-radius: 50%; background: var(--c); color: var(--on);
@@ -395,7 +416,7 @@
   .account-theme { display: none; align-items: center; justify-content: space-between; margin-top: 14px; font-size: 15px; font-weight: 600; }
   .account-theme .theme-switch { margin-top: 0; }
   @media (max-width: 520px) {
-    .title-end:has(.account:not([hidden])) > .theme-switch { display: none; }
+    .appbar-end:has(.account:not([hidden])) > .theme-switch { display: none; }
     .account-theme { display: flex; }
   }
   .link-btn { font: inherit; font-weight: 600; color: var(--primary-deep); background: none; border: 0; padding: 6px 0; cursor: pointer;
@@ -546,7 +567,15 @@
     .sheet-row .sheet-bar:nth-child(3) { border-right: 2px solid #1e2140; }
   }
   @media (max-width: 520px) {
-    .lbar-end .theme-switch { display: none; }
+    .brand { font-size: 19px; gap: 8px; }
+    .brand img { width: 32px; height: 32px; }
+    .lbar-end, .appbar-end { gap: 8px; }
+    .lbar-end .quiet { padding: 7px 13px; }
+    :is(.lbar-end, .appbar-end) .theme-switch { width: 56px; height: 30px; }
+    :is(.lbar-end, .appbar-end) .theme-switch .knob { width: 22px; height: 22px; }
+    :is(.lbar-end, .appbar-end) .theme-switch[aria-checked="true"] .knob { transform: translateX(26px); }
+    .songs-btn-label { display: none; }
+    button.songs-btn { padding: 7px 8px 7px 11px; }
     .cta .primary, .cta .quiet { flex: 1 1 100%; text-align: center; justify-content: center; }
     .lgets { grid-template-columns: minmax(0, 1fr); }
     .lgets > div { border-left: 0 !important; border-top: 2px dashed var(--rule); }
@@ -569,7 +598,8 @@
   @media (max-width: 760px) {
     body::before { top: 76px; height: 61px; background-size: 100% 61px; background-repeat: no-repeat;
                    background-image: repeating-linear-gradient(to bottom, var(--staff) 0 2px, transparent 2px 15px); }
-    .shell { grid-template-columns: minmax(0, 1fr); gap: 0; padding-top: 24px; }
+    .shell { grid-template-columns: minmax(0, 1fr); gap: 0; padding-top: 18px; }
+    .appbar { margin-bottom: 26px; }
     .bg-treble { width: 300px; left: -4px; bottom: 2vh; }
     .bg-bass { width: 260px; right: -150px; top: auto; bottom: 40vh; }
     .float-note:nth-of-type(n+4) { display: none; }
@@ -716,44 +746,49 @@
 </div>
 
 <div class="shell">
+  <header class="appbar">
+    <a class="brand" href="/"><img src="/logo.svg" alt="" width="36" height="36">Choir Solfa</a>
+    <div class="appbar-end">
+      <button type="button" class="quiet songs-btn" id="songsBtn" aria-haspopup="dialog" hidden>
+        <svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M2.5 4h7M2.5 8h7M2.5 12h4.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M13 10.6V3.2l1.6.8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><circle cx="11.6" cy="11" r="1.6" fill="currentColor"/></svg>
+        <span class="songs-btn-label">Your songs</span><span class="songs-btn-count" id="songsBtnCount"></span>
+      </button>
+      <button type="button" class="theme-switch" id="themeSwitch" role="switch" aria-checked="false" aria-label="Dark mode" title="Switch between light and dark">
+        <span class="knob">
+          <svg class="sun" viewBox="0 0 16 16" fill="none" aria-hidden="true"><circle cx="8" cy="8" r="3" fill="currentColor"/><path d="M8 1.5v1.6M8 12.9v1.6M1.5 8h1.6M12.9 8h1.6M3.4 3.4l1.1 1.1M11.5 11.5l1.1 1.1M3.4 12.6l1.1-1.1M11.5 4.5l1.1-1.1" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+          <svg class="moon" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M13.2 10.1A5.6 5.6 0 0 1 5.9 2.8a5.6 5.6 0 1 0 7.3 7.3Z" fill="currentColor"/></svg>
+        </span>
+      </button>
+      <div class="account" id="account" hidden>
+        <button type="button" class="avatar" id="accountBtn" aria-haspopup="true" aria-expanded="false" aria-controls="accountMenu"></button>
+        <div class="account-menu" id="accountMenu" hidden>
+          <div class="account-who">
+            <span class="avatar" aria-hidden="true"></span>
+            <div><small>Signed in as</small><b id="accountEmail"></b></div>
+          </div>
+          <p class="account-quota" id="accountQuota" hidden></p>
+          <div class="account-theme">
+            <span aria-hidden="true">Dark mode</span>
+            <button type="button" class="theme-switch" role="switch" aria-checked="false" aria-label="Dark mode">
+              <span class="knob">
+                <svg class="sun" viewBox="0 0 16 16" fill="none" aria-hidden="true"><circle cx="8" cy="8" r="3" fill="currentColor"/><path d="M8 1.5v1.6M8 12.9v1.6M1.5 8h1.6M12.9 8h1.6M3.4 3.4l1.1 1.1M11.5 11.5l1.1 1.1M3.4 12.6l1.1-1.1M11.5 4.5l1.1-1.1" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+                <svg class="moon" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M13.2 10.1A5.6 5.6 0 0 1 5.9 2.8a5.6 5.6 0 1 0 7.3 7.3Z" fill="currentColor"/></svg>
+              </span>
+            </button>
+          </div>
+          <button type="button" class="quiet" id="signOut">Sign out</button>
+        </div>
+      </div>
+    </div>
+  </header>
   <aside class="modulator" id="modulator" aria-hidden="true">
     <span>d</span><span class="tone">r</span><span class="tone">m</span><span class="semi">f</span>
     <span class="tone">s</span><span class="tone">l</span><span class="tone">t</span><span class="semi">d<sup>1</sup></span>
   </aside>
 
   <main>
-    <header class="reveal">
-      <div class="title-row">
-        <h1 aria-label="Choir Solfa">Choir <span class="rainbow" aria-hidden="true"><i>S</i><i>o</i><i>l</i><i>f</i><i>a</i></span></h1>
-        <div class="title-end">
-        <button type="button" class="theme-switch" id="themeSwitch" role="switch" aria-checked="false" aria-label="Dark mode" title="Switch between light and dark">
-          <span class="knob">
-            <svg class="sun" viewBox="0 0 16 16" fill="none" aria-hidden="true"><circle cx="8" cy="8" r="3" fill="currentColor"/><path d="M8 1.5v1.6M8 12.9v1.6M1.5 8h1.6M12.9 8h1.6M3.4 3.4l1.1 1.1M11.5 11.5l1.1 1.1M3.4 12.6l1.1-1.1M11.5 4.5l1.1-1.1" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
-            <svg class="moon" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M13.2 10.1A5.6 5.6 0 0 1 5.9 2.8a5.6 5.6 0 1 0 7.3 7.3Z" fill="currentColor"/></svg>
-          </span>
-        </button>
-        <div class="account" id="account" hidden>
-          <button type="button" class="avatar" id="accountBtn" aria-haspopup="true" aria-expanded="false" aria-controls="accountMenu"></button>
-          <div class="account-menu" id="accountMenu" hidden>
-            <div class="account-who">
-              <span class="avatar" aria-hidden="true"></span>
-              <div><small>Signed in as</small><b id="accountEmail"></b></div>
-            </div>
-            <p class="account-quota" id="accountQuota" hidden></p>
-            <div class="account-theme">
-              <span aria-hidden="true">Dark mode</span>
-              <button type="button" class="theme-switch" role="switch" aria-checked="false" aria-label="Dark mode">
-                <span class="knob">
-                  <svg class="sun" viewBox="0 0 16 16" fill="none" aria-hidden="true"><circle cx="8" cy="8" r="3" fill="currentColor"/><path d="M8 1.5v1.6M8 12.9v1.6M1.5 8h1.6M12.9 8h1.6M3.4 3.4l1.1 1.1M11.5 11.5l1.1 1.1M3.4 12.6l1.1-1.1M11.5 4.5l1.1-1.1" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
-                  <svg class="moon" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M13.2 10.1A5.6 5.6 0 0 1 5.9 2.8a5.6 5.6 0 1 0 7.3 7.3Z" fill="currentColor"/></svg>
-                </span>
-              </button>
-            </div>
-            <button type="button" class="quiet" id="signOut">Sign out</button>
-          </div>
-        </div>
-        </div>
-      </div>
+    <header class="intro reveal">
+      <h1>Make a <span class="rainbow" aria-label="solfa"><i>s</i><i>o</i><i>l</i><i>f</i><i>a</i></span> score</h1>
       <p>Turn a recording into tonic solfa for soprano, alto, tenor and bass, ready to print.</p>
       <ol class="steps">
         <li><b>1</b>Give it a song</li>
@@ -820,26 +855,6 @@
       <div class="quota" id="quota" hidden></div>
       <div class="form-error" id="formError" role="alert" hidden></div>
     </form>
-
-    <section class="card songs" id="songs" hidden aria-labelledby="songsTitle">
-      <div class="songs-head">
-        <h2 id="songsTitle">Your songs</h2>
-        <span class="songs-count" id="songsCount"></span>
-      </div>
-      <p class="sub" id="songsSub">Scores you've made on this computer. Open one to download or print it again.</p>
-      <ul class="song-list" id="songList"></ul>
-      <button type="button" class="quiet more" id="songsMore" hidden>Show all</button>
-    </section>
-
-    <section class="card" id="admin" hidden aria-labelledby="adminTitle">
-      <div class="songs-head">
-        <h2 id="adminTitle">Everyone's songs</h2>
-        <span class="songs-count" id="adminCount"></span>
-      </div>
-      <p class="sub">Only admins see this list.</p>
-      <ul class="admin-list" id="adminRows"></ul>
-      <button type="button" class="quiet more" id="adminMore" hidden>Show all</button>
-    </section>
 
     <section class="card" id="working" hidden aria-live="polite">
       <h2 id="workTitle">Listening to your song</h2>
@@ -910,6 +925,30 @@
       <button type="submit" value="keep" class="quiet" id="removeKeep" autofocus>Keep it</button>
     </div>
   </form>
+</dialog>
+
+<dialog class="panel" id="songsDialog" aria-labelledby="songsTitle">
+  <div class="guide-head">
+    <h2 id="songsTitle">Your songs</h2>
+    <button type="button" class="guide-close" id="songsClose" aria-label="Close">×</button>
+  </div>
+  <div class="guide-body">
+    <div class="tabs" id="songsTabs" role="tablist" aria-label="Which songs" hidden>
+      <button type="button" role="tab" id="tabMine" aria-selected="true" aria-controls="minePanel">Yours</button>
+      <button type="button" role="tab" id="tabAll" aria-selected="false" aria-controls="allPanel" tabindex="-1">Everyone's</button>
+    </div>
+    <div id="minePanel" role="tabpanel" aria-labelledby="tabMine">
+      <p class="sub" id="songsSub">Scores you've made on this computer. Open one to download or print it again.</p>
+      <ul class="song-list" id="songList"></ul>
+      <p class="empty" id="songsEmpty" hidden>You haven't made any songs yet.</p>
+      <div class="pager" id="songsPager" hidden></div>
+    </div>
+    <div id="allPanel" role="tabpanel" aria-labelledby="tabAll" hidden>
+      <p class="sub">Only admins see this list.</p>
+      <ul class="admin-list" id="adminRows"></ul>
+      <div class="pager" id="adminPager" hidden></div>
+    </div>
+  </div>
 </dialog>
 
 <dialog class="guide" id="guide" aria-labelledby="guideTitle">
@@ -1018,11 +1057,15 @@ function claims(jwt) {
 }
 const redirectUri = () => location.origin + "/";
 
+// The sign-in page matches the light / dark switch: the website has a light and a dark sign-in client.
+const signInLook = () => (document.documentElement.dataset.theme === "dark" && CLOUD.clientIdDark ? "dark" : "light");
+const signInClient = (look) => (look === "dark" ? CLOUD.clientIdDark : CLOUD.clientId);
+
 async function signIn(page = "oauth2/authorize", extra = {}) {
-  const verifier = randomText(32), state = randomText(16);
+  const verifier = randomText(32), state = randomText(16), look = signInLook();
   const challenge = b64url(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(verifier)));
-  store.set(LOGIN_KEY, { verifier, state, hash: songInAddress() ? location.hash : "" });
-  const q = new URLSearchParams({ response_type: "code", client_id: CLOUD.clientId, redirect_uri: redirectUri(),
+  store.set(LOGIN_KEY, { verifier, state, look, hash: songInAddress() ? location.hash : "" });
+  const q = new URLSearchParams({ response_type: "code", client_id: signInClient(look), redirect_uri: redirectUri(),
                                   scope: "openid email profile", state, code_challenge: challenge, code_challenge_method: "S256", ...extra });
   location.assign(`${CLOUD.authDomain}/${page}?${q}`);
 }
@@ -1062,7 +1105,7 @@ async function finishSignIn(params) {
   if (!saved.verifier || params.get("state") !== saved.state) return "Signing in didn't finish. Please try again.";
   try {
     const res = await authRequest("token", { code: params.get("code"), redirect_uri: redirectUri(),
-                                             code_verifier: saved.verifier });
+                                             code_verifier: saved.verifier, look: saved.look || "light" });
     if (!res.ok) return "Signing in didn't finish. Please try again.";
     keepToken((await res.json()).id);
     return null;
@@ -1091,13 +1134,14 @@ async function idToken() {
 async function signOut() {
   forget();
   try { await authRequest("signout"); } catch {}
-  const q = new URLSearchParams({ client_id: CLOUD.clientId, logout_uri: redirectUri() });
+  const q = new URLSearchParams({ client_id: signInClient(signInLook()), logout_uri: redirectUri() });
   location.assign(`${CLOUD.authDomain}/logout?${q}`);
 }
 
 function showSignIn(message) {
   clearTimeout(timer);
-  for (const id of ["form", "working", "failed", "result", "songs", "admin", "account"]) $(id).hidden = true;
+  for (const id of ["form", "working", "failed", "result", "songsBtn", "account"]) $(id).hidden = true;
+  if ($("songsDialog").open) $("songsDialog").close();
   document.documentElement.classList.add("signed-out");
   $("signinError").textContent = message || "";
   $("signinError").hidden = !message;
@@ -1368,7 +1412,6 @@ function show(which) {
   for (const id of ["form", "working", "failed", "result"]) $(id).hidden = id !== which;
   document.documentElement.classList.remove("signed-out");
   if (which === "form") { resetClimb(); setSongInAddress(null); loadSongs(); if (limits.admin) loadAdmin(); }
-  else { $("songs").hidden = true; $("admin").hidden = true; }
   window.scrollTo({ top: 0, behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
 }
 
@@ -1400,6 +1443,7 @@ function showResult(id, job) {
     d.append(s, b); $("facts").appendChild(d);
   }
   setGuideKey(r.letters, r.title);
+  loadSongs();  // a song just finished shows in the count
   $("kindNote").textContent = r.kind === "choir"
     ? "Heard as a choir: each part is written the way it was sung."
     : "Heard as one lead singer: the tune is the soprano part, and alto, tenor and bass were written to go with it.";
@@ -1461,9 +1505,63 @@ function showResult(id, job) {
 }
 $("remake").addEventListener("click", () => { if (lastBody) start(lastBody); });
 
-/* ---------- Your songs (kept on this computer, listed by the app) ---------- */
-const SONGS_SHOWN = 6;
-let songsAll = [], songsExpanded = false;
+/* ---------- Your songs: a pop-up list, a page at a time ---------- */
+const PAGE_SIZE = 8;
+let songsAll = [], songsPage = 0;
+const songsDialog = $("songsDialog");
+
+// Previous / Page 2 of 5 / Next under a list; hidden when it all fits on one page.
+function drawPager(el, page, total, go) {
+  const pages = Math.ceil(total / PAGE_SIZE);
+  el.innerHTML = "";
+  el.hidden = pages <= 1;
+  if (pages <= 1) return;
+  const step = (label, to, aria) => {
+    const b = document.createElement("button"); b.type = "button"; b.className = "quiet";
+    b.textContent = label; b.setAttribute("aria-label", aria); b.disabled = to < 0 || to >= pages;
+    b.addEventListener("click", () => go(to));
+    return b;
+  };
+  const where = document.createElement("span"); where.textContent = `Page ${page + 1} of ${pages}`;
+  el.append(step("‹ Previous", page - 1, "Previous page"), where, step("Next ›", page + 1, "Next page"));
+}
+const onPage = (list, page) => list.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
+const clampPage = (page, total) => Math.max(0, Math.min(page, Math.ceil(total / PAGE_SIZE) - 1));
+
+function updateSongsButton() {
+  const n = songsAll.length;
+  $("songsBtn").hidden = !(n || limits.admin);
+  $("songsBtnCount").textContent = n;
+  $("songsBtn").setAttribute("aria-label", n === 1 ? "Your songs: 1 song" : `Your songs: ${n} songs`);
+}
+
+function openSongsList() {
+  drawSongs(); drawAdmin();
+  if (typeof songsDialog.showModal === "function") songsDialog.showModal(); else songsDialog.setAttribute("open", "");
+  loadSongs();
+  if (limits.admin) loadAdmin();
+}
+function closeSongsList() {
+  if (typeof songsDialog.close === "function") songsDialog.close(); else songsDialog.removeAttribute("open");
+}
+$("songsBtn").addEventListener("click", openSongsList);
+$("songsClose").addEventListener("click", closeSongsList);
+songsDialog.addEventListener("click", (e) => { if (e.target === songsDialog) closeSongsList(); });  // click outside the box
+
+// Admins see two tabs: their own songs and everyone's.
+function pickTab(all) {
+  $("tabMine").setAttribute("aria-selected", String(!all)); $("tabAll").setAttribute("aria-selected", String(all));
+  $("tabMine").tabIndex = all ? -1 : 0; $("tabAll").tabIndex = all ? 0 : -1;
+  $("minePanel").hidden = all; $("allPanel").hidden = !all;
+  $("songsTitle").textContent = all ? "Everyone's songs" : "Your songs";
+}
+$("tabMine").addEventListener("click", () => pickTab(false));
+$("tabAll").addEventListener("click", () => pickTab(true));
+$("songsTabs").addEventListener("keydown", (e) => {
+  if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
+  const all = $("tabMine").getAttribute("aria-selected") === "true";
+  pickTab(all); (all ? $("tabAll") : $("tabMine")).focus();
+});
 
 function setSongInAddress(id, push) {
   const url = id ? `#song=${id}` : location.pathname + location.search;
@@ -1489,12 +1587,12 @@ async function loadSongs() {
 }
 
 function drawSongs() {
+  updateSongsButton();
   const list = $("songList");
   list.innerHTML = "";
-  $("songs").hidden = $("form").hidden || !songsAll.length;
-  $("songsCount").textContent = songsAll.length === 1 ? "1 song" : `${songsAll.length} songs`;
-  const shown = songsExpanded ? songsAll : songsAll.slice(0, SONGS_SHOWN);
-  for (const song of shown) {
+  songsPage = clampPage(songsPage, songsAll.length);
+  $("songsEmpty").hidden = songsAll.length > 0;
+  for (const song of onPage(songsAll, songsPage)) {
     const li = document.createElement("li");
     const open = document.createElement("button"); open.type = "button"; open.className = "song-open";
     const disc = document.createElement("span"); disc.className = "disc"; disc.setAttribute("aria-hidden", "true"); disc.textContent = "♪";
@@ -1506,17 +1604,15 @@ function drawSongs() {
       : [key, song.meter, song.kind === "choir" ? "choir" : "lead singer", song.expired ? "files deleted" : ""].filter(Boolean).join(" · ");
     const when = document.createElement("time"); when.dateTime = new Date(song.made * 1000).toISOString(); when.textContent = madeWhen(song.made);
     open.append(disc, name, info, when);
-    open.addEventListener("click", () => openSong(song.id, true));
+    open.addEventListener("click", () => { closeSongsList(); openSong(song.id, true); });
     const remove = document.createElement("button"); remove.type = "button"; remove.className = "song-remove";
     remove.textContent = "×"; remove.title = "Remove"; remove.setAttribute("aria-label", `Remove ${song.title || "this song"}`);
     remove.addEventListener("click", () => removeSong(song));
     li.append(open); if (!busy) li.append(remove);
     list.appendChild(li);
   }
-  $("songsMore").hidden = songsExpanded || songsAll.length <= SONGS_SHOWN;
-  $("songsMore").textContent = `Show all ${songsAll.length}`;
+  drawPager($("songsPager"), songsPage, songsAll.length, (to) => { songsPage = to; drawSongs(); $("songList").scrollIntoView({ block: "nearest" }); });
 }
-$("songsMore").addEventListener("click", () => { songsExpanded = true; drawSongs(); });
 
 // Ask on the page, not with confirm(): it can be tapped through, and some in-app phone browsers skip it.
 function askToRemove(song) {
@@ -1561,23 +1657,23 @@ async function openSong(id, push) {
 }
 
 /* ---------- Everyone's songs (admins, website only) ---------- */
-const ADMIN_SHOWN = 20;
-let adminAll = [], adminExpanded = false;
+let adminAll = [], adminPage = 0;
 async function loadAdmin() {
   try { adminAll = await apiJson("/api/admin/songs"); } catch { adminAll = []; }
   drawAdmin();
 }
 function drawAdmin() {
-  $("admin").hidden = $("form").hidden || !adminAll.length;
-  $("adminCount").textContent = adminAll.length === 1 ? "1 song" : `${adminAll.length} songs`;
+  $("songsTabs").hidden = !limits.admin;
+  updateSongsButton();
   const rows = $("adminRows");
   rows.innerHTML = "";
-  for (const s of adminExpanded ? adminAll : adminAll.slice(0, ADMIN_SHOWN)) {
+  adminPage = clampPage(adminPage, adminAll.length);
+  for (const s of onPage(adminAll, adminPage)) {
     const li = document.createElement("li");
     let song;
     if (s.status === "done" && !s.removed) {
       song = document.createElement("button"); song.type = "button";
-      song.addEventListener("click", () => openSong(s.id, true));
+      song.addEventListener("click", () => { closeSongsList(); openSong(s.id, true); });
     } else song = document.createElement("span");
     song.textContent = s.title || s.source || "Untitled song";
     const who = document.createElement("small"); who.textContent = `${s.email || "someone"} · ${madeWhen(s.made)}`;
@@ -1589,10 +1685,8 @@ function drawAdmin() {
     li.append(song, who, result);
     rows.appendChild(li);
   }
-  $("adminMore").hidden = adminExpanded || adminAll.length <= ADMIN_SHOWN;
-  $("adminMore").textContent = `Show all ${adminAll.length}`;
+  drawPager($("adminPager"), adminPage, adminAll.length, (to) => { adminPage = to; drawAdmin(); $("adminRows").scrollIntoView({ block: "nearest" }); });
 }
-$("adminMore").addEventListener("click", () => { adminExpanded = true; drawAdmin(); });
 
 window.addEventListener("popstate", () => {
   const id = songInAddress();
