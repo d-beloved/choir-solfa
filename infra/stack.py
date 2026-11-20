@@ -35,6 +35,7 @@ from aws_cdk import aws_lambda as lambda_
 from aws_cdk import aws_logs as logs
 from aws_cdk import aws_s3 as s3
 from aws_cdk import aws_s3_deployment as s3deploy
+from aws_cdk import custom_resources as cr
 from constructs import Construct
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -186,6 +187,23 @@ class ChoirSolfaStack(Stack):
                                                  operating_system_family=ecs.OperatingSystemFamily.LINUX))
         image = ecr_assets.DockerImageAsset(self, "WorkerImage", directory=str(ROOT), file="cloud/worker.Dockerfile",
                                             platform=ecr_assets.Platform.LINUX_ARM64)
+        # Each change to the worker pushes a new image of about 1 GB, and CDK's image store keeps
+        # them all. Keep the newest few: the worker in use is always among them, and the rest
+        # cover a deploy that is rolled back.
+        cr.AwsCustomResource(
+            self, "KeepRecentWorkerImages",
+            on_update=cr.AwsSdkCall(
+                service="ECR", action="putLifecyclePolicy",
+                parameters={"repositoryName": image.repository.repository_name,
+                            "lifecyclePolicyText": json.dumps({"rules": [{
+                                "rulePriority": 1, "description": "Keep the 3 newest images",
+                                "selection": {"tagStatus": "any", "countType": "imageCountMoreThan",
+                                              "countNumber": 3},
+                                "action": {"type": "expire"}}]})},
+                physical_resource_id=cr.PhysicalResourceId.of("keep-recent-worker-images")),
+            policy=cr.AwsCustomResourcePolicy.from_statements([iam.PolicyStatement(
+                actions=["ecr:PutLifecyclePolicy"], resources=[image.repository.repository_arn])]),
+            install_latest_aws_sdk=False)
         task.add_container(
             "worker", image=ecs.ContainerImage.from_docker_image_asset(image),
             logging=ecs.LogDriver.aws_logs(stream_prefix="song", log_retention=logs.RetentionDays.ONE_MONTH),
