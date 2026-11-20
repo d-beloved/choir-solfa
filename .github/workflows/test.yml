@@ -11,18 +11,15 @@ permissions:
 
 jobs:
   unit:
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [macos-latest, windows-latest]
-    runs-on: ${{ matrix.os }}
+    # The site runs on Linux ARM (the song worker and the API), so test there.
+    runs-on: ubuntu-24.04-arm
+    env:
+      UV_TORCH_BACKEND: cpu  # the CPU build of torch; the GPU one is several GB more
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           persist-credentials: false
       - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6
-      # Solve for this machine only. A cross-platform lock (uv run) picks TensorFlow
-      # helpers that have no Windows wheel.
       - run: uv venv --python 3.11 .venv
       - run: uv pip install --python .venv -e ".[dev]"
       - run: uv run --no-project --python .venv python -m pytest -q
