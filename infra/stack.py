@@ -189,14 +189,15 @@ class ChoirSolfaStack(Stack):
                                             platform=ecr_assets.Platform.LINUX_ARM64)
         # Each change to the worker pushes a new image of about 1 GB, and CDK's image store keeps
         # them all. Keep the newest few: the worker in use is always among them, and the rest
-        # cover a deploy that is rolled back.
+        # cover a deploy that is rolled back. Naming the newest image in the rule sets it again
+        # with every new image, in case `cdk bootstrap` puts back its own rule.
         cr.AwsCustomResource(
             self, "KeepRecentWorkerImages",
             on_update=cr.AwsSdkCall(
                 service="ECR", action="putLifecyclePolicy",
                 parameters={"repositoryName": image.repository.repository_name,
                             "lifecyclePolicyText": json.dumps({"rules": [{
-                                "rulePriority": 1, "description": "Keep the 3 newest images",
+                                "rulePriority": 1, "description": f"Keep the 3 newest images (newest: {image.image_tag})",
                                 "selection": {"tagStatus": "any", "countType": "imageCountMoreThan",
                                               "countNumber": 3},
                                 "action": {"type": "expire"}}]})},

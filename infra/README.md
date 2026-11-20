@@ -122,3 +122,4 @@ DNS only, not proxied.
 - Cognito's built-in email sends about 50 emails a day. If more people sign up than that,
   connect Amazon SES to the user pool.
 - The table, the data bucket and the user pool are kept if the stack is deleted.
+- Only the three newest worker images are kept in CDK's image store; older ones are deleted.
