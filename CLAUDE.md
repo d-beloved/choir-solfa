@@ -1,6 +1,6 @@
 # choir-solfa
 
-A local tool that turns a song (link or file) into a four-part (SATB) tonic solfa score: PDF, text and MIDI. See README.md for what it does and how.
+A tool that turns a song (link or file) into a four-part (SATB) tonic solfa score: PDF, text and MIDI. It runs as a website on AWS (`cloud/`, `infra/`, see infra/README.md) and locally. See README.md for what it does and how.
 
 ## Environment
 - Use `.venv/bin/python` (native arm64 Python 3.11, made with uv). The system Python is x86 under Rosetta; don't use it.
@@ -17,9 +17,9 @@ A local tool that turns a song (link or file) into a four-part (SATB) tonic solf
 ## Conventions
 - Grid cells: 4 per pulse in simple time, 2 per pulse in 6/8 (`models.METERS`). Pitches are sounding MIDI; `theory.written_pitch` raises tenor and bass by an octave for the page.
 - Movable doh. Minor keys use the lah mode, so doh is the relative major.
-- The server binds to 127.0.0.1 only and checks the Host header, and non-GET requests need the per-run X-Token. Keep both if you change routes. `--public-host` adds names to the Host check; `--restart-when-idle` (used under launchd) keeps the token in `~/.choir-solfa/token` so it survives the server quitting itself when idle after a song or a code change.
-- Desktop installs: `install.sh` / `install.ps1` run `uv tool install` from the GitHub zip, then `choir-solfa shortcut` makes the icon. The icon runs `python -m choir_solfa serve --quit-when-closed`: the page pings `/api/ping` each minute and the server quits 15 minutes after the last page closes. A second start just opens the page.
-- Downloads on the website (`docs/`, GitHub Pages): `install-choir-solfa.cmd` for Windows (in docs/), and for Mac `Install-Choir-Solfa-Mac.zip` on the `mac-installer` GitHub release: an AppleScript applet that opens Terminal on `install.sh`. `scripts/make_mac_installer.py` builds it; the `mac installer` workflow rebuilds and publishes it when the script or icon changes, signed and notarized when the MACOS_CERT_P12 / MACOS_CERT_PASSWORD / NOTARY_KEY_P8 / NOTARY_KEY_ID / NOTARY_ISSUER_ID secrets are set (`scripts/setup_mac_signing.sh request`, then `secrets`; the signing key lives in `~/.choir-solfa-signing`).
+- The local server binds to 127.0.0.1 only and checks the Host header, and non-GET requests need the per-run X-Token. Keep both if you change routes.
+- The same `web/index.html` is the website: the deploy fills in `__CLOUD__` (sign-in and API settings); locally it is `null`. Sign-in is Cognito (email + password, optional Google); admins are the Cognito group `admins`.
+- Website deploys: merging to main deploys (`.github/workflows/deploy.yml`, see infra/README.md); don't deploy by hand unless asked. This deployment's names and addresses are in the gitignored `infra/cdk.context.json`; never commit them.
 - Messages shown on the page are plain words for choir leaders, not technical terms.
 
 ## Testing on real audio

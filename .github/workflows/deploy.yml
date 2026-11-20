@@ -1,0 +1,58 @@
+name: deploy
+
+# Every push to main (a merged pull request) is tested and then deployed to AWS.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# One deploy at a time; a newer merge waits for the running deploy rather than cutting it off.
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  test:
+    uses: ./.github/workflows/test.yml
+
+  deploy:
+    needs: test
+    # The worker runs on ARM (Graviton), so its image builds natively here.
+    runs-on: ubuntu-24.04-arm
+    # Only main may use this environment, and the AWS role trusts only this environment.
+    environment: production
+    timeout-minutes: 60
+    permissions:
+      contents: read
+      id-token: write  # to sign in to AWS with GitHub's short-lived token; no AWS keys are stored
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 22
+      - uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a # v4.3.1
+        with:
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE }}
+          aws-region: us-east-2
+          mask-aws-account-id: true
+      # This deployment's addresses and alert email are kept in AWS, not in the public repository.
+      # The logs are public, so every value is masked before anything can print it.
+      - name: Fetch the deployment settings
+        run: |
+          aws ssm get-parameter --name /choir-solfa/deploy-context --with-decryption \
+            --query Parameter.Value --output text > infra/cdk.context.json
+          jq -r '.[] | strings' infra/cdk.context.json | while read -r value; do echo "::add-mask::$value"; done
+      - name: Install CDK
+        working-directory: infra
+        run: |
+          uv venv --python 3.11 .venv
+          uv pip install --python .venv -r requirements.txt
+      - name: Deploy
+        working-directory: infra
+        run: npx --yes aws-cdk@2.1149.0 deploy ChoirSolfa --require-approval never --progress events

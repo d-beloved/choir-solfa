@@ -7,13 +7,6 @@
       "runtimeArgs": ["serve", "--no-open", "--port", "4790"],
       "port": 4790,
       "url": "http://127.0.0.1:4790"
-    },
-    {
-      "name": "landing-page",
-      "runtimeExecutable": ".venv/bin/python",
-      "runtimeArgs": ["-m", "http.server", "4794", "--bind", "127.0.0.1", "--directory", "docs"],
-      "port": 4794,
-      "url": "http://127.0.0.1:4794"
     }
   ]
 }

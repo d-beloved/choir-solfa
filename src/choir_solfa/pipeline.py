@@ -50,7 +50,8 @@ class Result:
 
 
 def run(source: str, workdir: Path, *, mode: str = "auto", meter: str = "auto", title: str | None = None,
-        upload_name: str | None = None, progress: Progress = lambda s, f: None) -> Result:
+        upload_name: str | None = None, progress: Progress = lambda s, f: None,
+        max_seconds: float | None = None) -> Result:
     if mode not in ("auto", "choir", "solo"):
         raise ValueError("mode must be auto, choir or solo")
     if meter != "auto" and meter not in METERS:
@@ -70,6 +71,9 @@ def run(source: str, workdir: Path, *, mode: str = "auto", meter: str = "auto", 
     progress("Reading the audio", 0.08)
     mix = audio.decode(path, MIX_SR, 2)
     duration = mix.shape[1] / MIX_SR
+    if max_seconds and duration > max_seconds + 1:
+        raise audio.AudioError(f"This recording is {duration / 60:.0f} minutes long. Songs can be up to "
+                               f"{max_seconds / 60:.0f} minutes: trim it, or choose a shorter recording.")
 
     progress("Separating the voices from the instruments", 0.1)
     vocals, accomp = audio.separate_vocals(mix, lambda f: progress("Separating the voices from the instruments", 0.1 + 0.5 * f))

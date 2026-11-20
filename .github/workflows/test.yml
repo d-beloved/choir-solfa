@@ -1,10 +1,13 @@
 name: test
 
+# On pull requests, and as the first step of every deploy (deploy.yml).
 on:
-  push:
-    branches: [main]
   pull_request:
+  workflow_call:
   workflow_dispatch:
+
+permissions:
+  contents: read
 
 jobs:
   unit:
@@ -14,34 +17,12 @@ jobs:
         os: [macos-latest, windows-latest]
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v6
-      # Solve for this machine only, as the installer does. A cross-platform lock
-      # (uv run) picks TensorFlow helpers that have no Windows wheel.
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6
+      # Solve for this machine only. A cross-platform lock (uv run) picks TensorFlow
+      # helpers that have no Windows wheel.
       - run: uv venv --python 3.11 .venv
       - run: uv pip install --python .venv -e ".[dev]"
       - run: uv run --no-project --python .venv python -m pytest -q
-
-  install:
-    # Installs the way a choir leader would, then makes a score and opens the page.
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [macos-latest, macos-15-intel, windows-latest]
-    runs-on: ${{ matrix.os }}
-    env:
-      CHOIR_SOLFA_NO_OPEN: "1"
-    steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v6
-      - name: Run install.sh
-        if: runner.os == 'macOS'
-        run: CHOIR_SOLFA_SOURCE="$PWD" sh install.sh
-      - name: Run install.ps1
-        if: runner.os == 'Windows'
-        shell: pwsh
-        run: |
-          $env:CHOIR_SOLFA_SOURCE = (Get-Location).Path
-          ./install.ps1
-      - name: Make a score and open the page
-        run: uv run --no-project --python 3.11 scripts/smoke.py
