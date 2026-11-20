@@ -314,8 +314,12 @@ class ChoirSolfaStack(Stack):
         # fresh copy can't quietly remove this.
         if settings.get("alert_email") and settings["alert_email"] != "none":
             subscriber = budgets.CfnBudget.SubscriberProperty(subscription_type="EMAIL", address=settings["alert_email"])
+            kinds = ("FORECASTED", "ACTUAL")
+            # AWS can't change a budget's alerts in place, so CloudFormation makes a new budget and
+            # then deletes the old one. A name that changes with the alerts keeps the two apart.
+            alerts = hashlib.sha256(json.dumps([settings["alert_email"], kinds]).encode()).hexdigest()[:6]
             budgets.CfnBudget(self, "Budget", budget=budgets.CfnBudget.BudgetDataProperty(
-                budget_type="COST", time_unit="MONTHLY", budget_name="choir-solfa",
+                budget_type="COST", time_unit="MONTHLY", budget_name=f"choir-solfa-{alerts}",
                 budget_limit=budgets.CfnBudget.SpendProperty(amount=float(settings["alert_usd"]), unit="USD")),
                 notifications_with_subscribers=[
                     budgets.CfnBudget.NotificationWithSubscribersProperty(
@@ -323,7 +327,7 @@ class ChoirSolfaStack(Stack):
                             comparison_operator="GREATER_THAN", notification_type=kind, threshold=100,
                             threshold_type="PERCENTAGE"),
                         subscribers=[subscriber])
-                    for kind in ("FORECASTED", "ACTUAL")])
+                    for kind in kinds])
 
         CfnOutput(self, "SiteUrl", value=f"https://{domain or distribution.distribution_domain_name}/")
         CfnOutput(self, "CloudFrontDomain", value=distribution.distribution_domain_name)
