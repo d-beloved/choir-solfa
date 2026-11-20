@@ -11,13 +11,16 @@ Uses only the Python standard library and boto3, which Lambda provides.
 """
 from __future__ import annotations
 
+import ipaddress
 import json
 import os
 import re
+import socket
 import time
 import urllib.error
 import urllib.request
 import uuid
+from concurrent.futures import ThreadPoolExecutor
 from urllib.parse import urlencode, urlparse
 
 import boto3
@@ -228,6 +231,9 @@ def create_job(user: dict, body: dict) -> dict:
         url = ""
     elif not public_link(url):
         raise Problem(400, "Paste a link to a song or choose a file.")
+    elif points_inside(url):
+        raise Problem(400, "That link doesn't point to a public website. "
+                           "Paste a link to a song on YouTube, Spotify or another music site.")
 
     job_id = uuid.uuid4().hex
     now = int(time.time())
@@ -283,6 +289,38 @@ def public_link(url: str) -> bool:
     if not re.fullmatch(r"[a-z]{2,63}|xn--[a-z0-9-]+", labels[-1]):
         return False  # an IP address in any spelling (10.0.0.1, 0xa.0.0.1, 167772161) ends in digits
     return labels[-1] not in ("localhost", "local", "internal", "localdomain", "home", "lan", "corp", "intranet")
+
+
+_LOOKUPS = ThreadPoolExecutor(max_workers=4)
+
+
+def _lookup(host: str) -> list:
+    return socket.getaddrinfo(host, None, proto=socket.IPPROTO_TCP)
+
+
+def points_inside(url: str, wait: float = 3) -> bool:
+    """True when the link's website name looks up to a private, loopback, link-local or other
+    non-public address (a public-looking name can point at 169.254.169.254 or 10.x).
+
+    This refuses such links before a song machine starts. The machine looks the name up again and
+    fetches only through its tunnel, which also covers names that change their answer later and
+    redirects. A name that doesn't look up, or not in time, is left to the download to report.
+    """
+    host = urlparse(url).hostname
+    if not host:
+        return False  # a Spotify track id
+    try:
+        found = _LOOKUPS.submit(_lookup, host).result(timeout=wait)
+    except (TimeoutError, OSError, UnicodeError):
+        return False
+    for *_, sockaddr in found:
+        try:
+            address = ipaddress.ip_address(str(sockaddr[0]).split("%")[0])
+        except ValueError:
+            return True
+        if not address.is_global or address.is_multicast:
+            return True
+    return False
 
 
 def _start_record(user: dict, item: dict) -> None:

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import socket
 import time
 from pathlib import Path
 
@@ -58,6 +59,7 @@ def api(aws):
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
     mod.ECS = FakeEcs()
+    mod._lookup = lambda host: [(2, 1, 6, "", ("93.184.215.14", 0))]  # every name is public unless a test says so
     return mod
 
 
@@ -346,6 +348,32 @@ def test_links_must_be_public_websites(api):
     assert [u for u in ok if not api.public_link(u)] == []
     assert [u for u in bad if api.public_link(u)] == []
     assert call(api, "POST", "/api/jobs", body={"url": "http://169.254.169.254/latest/meta-data/"})[0] == 400
+
+
+def test_names_that_lead_inside_are_refused_before_a_machine_starts(api):
+    answers = {"inside.example.com": "169.254.169.254", "vpc.example.com": "10.0.4.2", "loop.example.com": "127.0.0.1",
+               "v6.example.com": "fd00::1", "fine.example.com": "93.184.215.14"}
+
+    def lookup(host):
+        if host not in answers:
+            raise socket.gaierror("no such name")
+        return [(2, 1, 6, "", (answers[host], 0))]
+
+    api._lookup = lookup
+    for name in ("inside", "vpc", "loop", "v6"):
+        status, body = call(api, "POST", "/api/jobs", body={"url": f"https://{name}.example.com/song"})
+        assert status == 400 and "public website" in body["detail"], name
+    assert api.ECS.started == []
+    assert not api.points_inside("https://fine.example.com/song")
+    assert not api.points_inside("https://unknown.example.com/song")  # left to the download to report
+    assert not api.points_inside("spotify:track:" + "a" * 22)
+
+
+def test_a_slow_lookup_does_not_hold_up_the_request(api):
+    api._lookup = lambda host: time.sleep(2) or []
+    started = time.time()
+    assert not api.points_inside("https://slow.example.com/song", wait=0.2)
+    assert time.time() - started < 1
 
 
 def test_one_person_can_only_have_two_songs_being_made(api, monkeypatch):
