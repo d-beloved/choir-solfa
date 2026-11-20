@@ -3,6 +3,7 @@
 # installs exactly what was tested and nothing that appears later on an index.
 #   cloud/worker-torch.txt         torch and torchaudio, from PyTorch's CPU-only index
 #   cloud/worker-requirements.txt  everything else, from PyPI only
+#   cloud/test-requirements.txt    what the tests add on top, for CI (.github/workflows/test.yml)
 # Run from the repository root after changing dependencies (it picks the newest versions that
 # fit), then rebuild the image and make a song with it before deploying.
 set -eu
@@ -30,3 +31,11 @@ printf 'torch==%s\ntorchaudio==%s\n' "$TORCH" "$TORCHAUDIO" > "$tmp/pins.txt"
 xargs uv pip compile pyproject.toml "$tmp/extra.in" $PLATFORM --constraint "$tmp/pins.txt" \
   --no-emit-package=torch --no-emit-package=torchaudio --generate-hashes --no-header --no-annotate \
   -o cloud/worker-requirements.txt < "$tmp/skip"
+
+# The tests' own tools, at versions that fit the worker's (CI tests with both lists).
+printf 'pytest\nhttpx2\nmoto[dynamodb,s3]\n' > "$tmp/test.in"
+sed -n 's/^\([A-Za-z0-9._-]*==[^ ]*\).*/\1/p' cloud/worker-requirements.txt cloud/worker-torch.txt \
+  | sed 's/+cpu$//' > "$tmp/worker-pins.txt"
+uv pip compile "$tmp/test.in" $PLATFORM --constraint "$tmp/worker-pins.txt" \
+  --no-emit-package=torch --no-emit-package=torchaudio --generate-hashes --no-header --no-annotate \
+  -o cloud/test-requirements.txt

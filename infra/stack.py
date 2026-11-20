@@ -35,6 +35,7 @@ from aws_cdk import aws_lambda as lambda_
 from aws_cdk import aws_logs as logs
 from aws_cdk import aws_s3 as s3
 from aws_cdk import aws_s3_deployment as s3deploy
+from aws_cdk import custom_resources as cr
 from constructs import Construct
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -186,6 +187,24 @@ class ChoirSolfaStack(Stack):
                                                  operating_system_family=ecs.OperatingSystemFamily.LINUX))
         image = ecr_assets.DockerImageAsset(self, "WorkerImage", directory=str(ROOT), file="cloud/worker.Dockerfile",
                                             platform=ecr_assets.Platform.LINUX_ARM64)
+        # Each change to the worker pushes a new image of about 1 GB, and CDK's image store keeps
+        # them all. Keep the newest few: the worker in use is always among them, and the rest
+        # cover a deploy that is rolled back. Naming the newest image in the rule sets it again
+        # with every new image, in case `cdk bootstrap` puts back its own rule.
+        cr.AwsCustomResource(
+            self, "KeepRecentWorkerImages",
+            on_update=cr.AwsSdkCall(
+                service="ECR", action="putLifecyclePolicy",
+                parameters={"repositoryName": image.repository.repository_name,
+                            "lifecyclePolicyText": json.dumps({"rules": [{
+                                "rulePriority": 1, "description": f"Keep the 3 newest images (newest: {image.image_tag})",
+                                "selection": {"tagStatus": "any", "countType": "imageCountMoreThan",
+                                              "countNumber": 3},
+                                "action": {"type": "expire"}}]})},
+                physical_resource_id=cr.PhysicalResourceId.of("keep-recent-worker-images")),
+            policy=cr.AwsCustomResourcePolicy.from_statements([iam.PolicyStatement(
+                actions=["ecr:PutLifecyclePolicy"], resources=[image.repository.repository_arn])]),
+            install_latest_aws_sdk=False)
         task.add_container(
             "worker", image=ecs.ContainerImage.from_docker_image_asset(image),
             logging=ecs.LogDriver.aws_logs(stream_prefix="song", log_retention=logs.RetentionDays.ONE_MONTH),
@@ -295,8 +314,12 @@ class ChoirSolfaStack(Stack):
         # fresh copy can't quietly remove this.
         if settings.get("alert_email") and settings["alert_email"] != "none":
             subscriber = budgets.CfnBudget.SubscriberProperty(subscription_type="EMAIL", address=settings["alert_email"])
+            kinds = ("FORECASTED", "ACTUAL")
+            # AWS can't change a budget's alerts in place, so CloudFormation makes a new budget and
+            # then deletes the old one. A name that changes with the alerts keeps the two apart.
+            alerts = hashlib.sha256(json.dumps([settings["alert_email"], kinds]).encode()).hexdigest()[:6]
             budgets.CfnBudget(self, "Budget", budget=budgets.CfnBudget.BudgetDataProperty(
-                budget_type="COST", time_unit="MONTHLY", budget_name="choir-solfa",
+                budget_type="COST", time_unit="MONTHLY", budget_name=f"choir-solfa-{alerts}",
                 budget_limit=budgets.CfnBudget.SpendProperty(amount=float(settings["alert_usd"]), unit="USD")),
                 notifications_with_subscribers=[
                     budgets.CfnBudget.NotificationWithSubscribersProperty(
@@ -304,7 +327,7 @@ class ChoirSolfaStack(Stack):
                             comparison_operator="GREATER_THAN", notification_type=kind, threshold=100,
                             threshold_type="PERCENTAGE"),
                         subscribers=[subscriber])
-                    for kind in ("FORECASTED", "ACTUAL")])
+                    for kind in kinds])
 
         CfnOutput(self, "SiteUrl", value=f"https://{domain or distribution.distribution_domain_name}/")
         CfnOutput(self, "CloudFrontDomain", value=distribution.distribution_domain_name)

@@ -4,8 +4,9 @@ GitHub signs each workflow run with a short-lived token (OpenID Connect). This r
 tokens for this repository's "production" environment, which only the main branch may use. All it
 may do is hand the deploy over to CDK's own bootstrap roles and read this deployment's settings.
 
-Deploy once by hand (cd infra && npx aws-cdk@2 deploy ChoirSolfaGitHub); after that, merging to
-main deploys ChoirSolfa (.github/workflows/deploy.yml).
+GitHub names the repository in its tokens either as repo:OWNER/NAME or, for newer repositories,
+with their ids as well (repo:OWNER@ID/NAME@ID). infra/setup-github-deploy.sh asks GitHub which and
+deploys this stack; after that, merging to main deploys ChoirSolfa (.github/workflows/deploy.yml).
 """
 from __future__ import annotations
 
@@ -18,7 +19,7 @@ ISSUER = "token.actions.githubusercontent.com"
 
 
 class GitHubDeployStack(Stack):
-    def __init__(self, scope: Construct, cid: str, *, repo: str, **kwargs) -> None:
+    def __init__(self, scope: Construct, cid: str, *, repo: str, subject: str, **kwargs) -> None:
         super().__init__(scope, cid, **kwargs)
         provider = iam.OidcProviderNative(self, "GitHub", url=f"https://{ISSUER}", client_ids=["sts.amazonaws.com"])
         role = iam.Role(
@@ -26,7 +27,7 @@ class GitHubDeployStack(Stack):
             description=f"GitHub Actions in {repo} (production environment) deploying Choir Solfa",
             assumed_by=iam.WebIdentityPrincipal(provider.oidc_provider_arn, conditions={
                 "StringEquals": {f"{ISSUER}:aud": "sts.amazonaws.com",
-                                 f"{ISSUER}:sub": f"repo:{repo}:environment:production"}}))
+                                 f"{ISSUER}:sub": f"{subject}:environment:production"}}))
         # CDK's bootstrap roles (deploy, publish files and images, look up) do the actual work.
         role.add_to_policy(iam.PolicyStatement(
             actions=["sts:AssumeRole", "sts:TagSession"],

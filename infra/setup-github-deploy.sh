@@ -11,7 +11,11 @@ repo=$(gh repo view --json nameWithOwner -q .nameWithOwner)
 [ -x .venv/bin/python ] || { uv venv --python 3.11 .venv && uv pip install --python .venv -r requirements.txt; }
 
 echo "1/4 The role GitHub signs in to AWS with (no keys)"
-npx --yes aws-cdk@2.1149.0 deploy ChoirSolfaGitHub --require-approval never >/dev/null
+# How GitHub names this repository in its tokens: repo:OWNER/NAME, or with ids for newer repositories.
+subject=$(gh api "repos/$repo/actions/oidc/customization/sub" -q '.sub_claim_prefix // empty' || true)
+[ -n "$subject" ] || echo "    GitHub didn't say; using repo:$repo"
+npx --yes aws-cdk@2.1149.0 deploy ChoirSolfaGitHub --require-approval never \
+  -c github_subject="${subject:-repo:$repo}" >/dev/null
 role=$(aws cloudformation describe-stacks --stack-name ChoirSolfaGitHub \
   --query "Stacks[0].Outputs[?OutputKey=='DeployRoleArn'].OutputValue" --output text)
 

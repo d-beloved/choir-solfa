@@ -11,18 +11,21 @@ permissions:
 
 jobs:
   unit:
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [macos-latest, windows-latest]
-    runs-on: ${{ matrix.os }}
+    # The site runs on Linux ARM (the song worker and the API), so test there, with the exact
+    # package versions the worker image installs (cloud/worker-*.txt, made by cloud/lock-worker.sh).
+    runs-on: ubuntu-24.04-arm
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           persist-credentials: false
       - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6
-      # Solve for this machine only. A cross-platform lock (uv run) picks TensorFlow
-      # helpers that have no Windows wheel.
       - run: uv venv --python 3.11 .venv
-      - run: uv pip install --python .venv -e ".[dev]"
+      - name: Install what the worker image installs
+        run: |
+          uv pip install --python .venv --no-deps --require-hashes \
+            --index-url https://download.pytorch.org/whl/cpu -r cloud/worker-torch.txt
+          uv pip install --python .venv --no-deps --require-hashes -r cloud/worker-requirements.txt
+          uv pip install --python .venv --no-deps -e .
+      - name: Install the tests' own tools
+        run: uv pip install --python .venv --no-deps --require-hashes -r cloud/test-requirements.txt
       - run: uv run --no-project --python .venv python -m pytest -q
