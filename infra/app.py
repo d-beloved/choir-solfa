@@ -37,6 +37,7 @@ DEFAULTS = {
     "google_stored_as": "choir-solfa/google-client-secret",  # the name its client secret is stored under in Secrets Manager (not the secret itself: see README)
     "local_page": False,
     "github_repo": "d-beloved/choir-solfa",  # whose main branch deploys the site (github_access.py)
+    "github_subject": "",  # how GitHub names the repository in its tokens; setup-github-deploy.sh fills it in
 }
 
 app = cdk.App()
@@ -52,5 +53,6 @@ if not settings["alert_email"]:
                      "kept, or -c alert_email=none to deploy without one.")
 env = cdk.Environment(account=os.environ.get("CDK_DEFAULT_ACCOUNT"), region=os.environ.get("CDK_DEFAULT_REGION"))
 ChoirSolfaStack(app, "ChoirSolfa", settings=settings, env=env)
-GitHubDeployStack(app, "ChoirSolfaGitHub", repo=settings["github_repo"], env=env)
+GitHubDeployStack(app, "ChoirSolfaGitHub", repo=settings["github_repo"],
+                  subject=settings["github_subject"] or f"repo:{settings['github_repo']}", env=env)
 app.synth()
