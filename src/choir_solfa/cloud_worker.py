@@ -198,7 +198,7 @@ def make_song(job: dict, table, s3, bucket: str, max_seconds: float) -> None:
                 try:
                     result = pipeline.run(source, work, mode=job.get("mode", "auto"), meter=job.get("meter", "auto"),
                                           title=job.get("title_asked") or None, upload_name=job.get("upload_name"),
-                                          progress=progress, max_seconds=max_seconds)
+                                          progress=progress, max_seconds=max_seconds, lyrics=job.get("lyrics"))
                     break
                 except FetchError as e:
                     if str(e) != REFUSED or attempt == tries:

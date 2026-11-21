@@ -8,15 +8,15 @@ from typing import Callable
 
 import numpy as np
 
-from . import audio
-from .fetch import get_song, is_url, use_upload
+from . import audio, lyrics as lyr
+from .fetch import Song, get_song, is_url, use_upload
 from .harmony import harmonize
 from .midi import write_midi
 from .models import METERS, Score
 from .notation import score_text
 from .pdf import write_pdf
 from .rhythm import (align_to_bars, beat_grid, choose_bar_phase, fold_fast_beats, guess_meter, quantize, refine_beats,
-                     tempo_from_beats)
+                     tempo_from_beats, time_to_cell)
 from .theory import PARTS, choose_doh_midi, detect_key, doh_pc_for, key_label, scale_letters
 from .voices import clean_part, merge_resung, split_choir
 
@@ -40,18 +40,23 @@ class Result:
     found_on: str | None = None
     found_url: str | None = None
     letters: list[str] = field(default_factory=list)  # d r m f s l t as letter names
+    # The words: "you" (given) or "online" (found) when printed, "missing" (none found for a link),
+    # "unplaced" (given or found but they didn't fit the tune), or None (none given for a file).
+    words: str | None = None
+    words_found: str | None = None  # what was found online, e.g. "Silent Night by Tyler Shaw"
 
     def to_dict(self) -> dict:
         return {
             "title": self.title, "kind": self.kind, "key": self.key, "meter": self.meter,
             "tempo": self.tempo, "bars": self.bars, "pdf": self.pdf.name, "midi": self.midi.name,
             "found_on": self.found_on, "found_url": self.found_url, "letters": self.letters,
+            "words": self.words, "words_found": self.words_found,
         }
 
 
 def run(source: str, workdir: Path, *, mode: str = "auto", meter: str = "auto", title: str | None = None,
         upload_name: str | None = None, progress: Progress = lambda s, f: None,
-        max_seconds: float | None = None) -> Result:
+        max_seconds: float | None = None, lyrics: str | None = None) -> Result:
     if mode not in ("auto", "choir", "solo"):
         raise ValueError("mode must be auto, choir or solo")
     if meter != "auto" and meter not in METERS:
@@ -66,6 +71,7 @@ def run(source: str, workdir: Path, *, mode: str = "auto", meter: str = "auto", 
     else:
         path, found_title = use_upload(Path(source), workdir, upload_name or Path(source).name)
         found_on = found_url = None
+        song = None
     title = (title or found_title).strip() or "Untitled song"
 
     progress("Reading the audio", 0.08)
@@ -74,6 +80,14 @@ def run(source: str, workdir: Path, *, mode: str = "auto", meter: str = "auto", 
     if max_seconds and duration > max_seconds + 1:
         raise audio.AudioError(f"This recording is {duration / 60:.0f} minutes long. Songs can be up to "
                                f"{max_seconds / 60:.0f} minutes: trim it, or choose a shorter recording.")
+
+    words = None
+    if lyrics and lyrics.strip():
+        lines = lyr.parse(lyrics)
+        words = lyr.Words(lines) if lines else None
+    elif song is not None:
+        progress("Looking for the words", 0.09)
+        words = find_words(song, duration)
 
     progress("Separating the voices from the instruments", 0.1)
     vocals, accomp = audio.separate_vocals(mix, lambda f: progress("Separating the voices from the instruments", 0.1 + 0.5 * f))
@@ -131,7 +145,7 @@ def run(source: str, workdir: Path, *, mode: str = "auto", meter: str = "auto", 
         attacks = audio.onset_cells(voc_m, cells)
         parts = {k: clean_part(merge_resung(v, attacks)) for k, v in split_choir(grid, len(cells)).items()}
         phase = choose_bar_phase(parts["Soprano"] + parts["Bass"], m)
-        parts, total, _ = align_to_bars(parts, m, phase)
+        parts, total, shift = align_to_bars(parts, m, phase)
         notes_lines.append("Parts as heard in the recording. Voices that overlap are hard to tell apart, so check each line by ear.")
     else:
         progress("Following the lead melody", 0.82)
@@ -144,7 +158,7 @@ def run(source: str, workdir: Path, *, mode: str = "auto", meter: str = "auto", 
             for n in melody:
                 n.pitch += shift
         phase = choose_bar_phase(melody, m)
-        aligned, total, _ = align_to_bars({"Soprano": melody}, m, phase)
+        aligned, total, shift = align_to_bars({"Soprano": melody}, m, phase)
         progress("Writing alto, tenor and bass", 0.9)
         parts = {"Soprano": aligned["Soprano"], **harmonize(aligned["Soprano"], doh_pc, key_mode, m, total)}
         notes_lines.append("Solo song: the melody is the soprano line. Alto, tenor and bass are a suggested arrangement.")
@@ -153,12 +167,23 @@ def run(source: str, workdir: Path, *, mode: str = "auto", meter: str = "auto", 
         elif shift < 0:
             notes_lines.append("The melody has been written an octave down to suit sopranos.")
 
+    placed: dict[int, str] = {}
+    if words:
+        progress("Putting the words under the notes", 0.92)
+        placed = lyr.place(words.lines, parts["Soprano"], total, m,
+                           (lambda t: time_to_cell(cells, t) + shift) if words.timed else None)
+    if placed:
+        notes_lines.append("The words were placed under the soprano automatically. Check where each syllable falls.")
+    words_state = ("you" if words.source == "you" else "online") if placed else \
+        ("unplaced" if words else ("missing" if song is not None else None))
+
     if guessed:
         notes_lines.append(f"Time {meter} was worked out from the recording. If the bars look wrong, pick the time yourself and run it again.")
     parts = {p: parts.get(p, []) for p in PARTS}
     score = Score(
         title=title, doh_pc=doh_pc, tonic_pc=tonic_pc, mode=key_mode, meter=m, tempo_bpm=tempo,
         doh_midi=choose_doh_midi(doh_pc, parts), total_cells=total, parts=parts, kind=kind, notes=notes_lines,
+        words=placed,
     )
 
     progress("Making the PDF", 0.95)
@@ -168,10 +193,20 @@ def run(source: str, workdir: Path, *, mode: str = "auto", meter: str = "auto", 
     (workdir / "score.txt").write_text(score_text(score), encoding="utf-8")
 
     result = Result(title, kind, key_label(doh_pc, tonic_pc, key_mode), meter, int(round(tempo)),
-                    total // m.cells_per_bar, pdf_path, midi_path, found_on, found_url, scale_letters(doh_pc))
+                    total // m.cells_per_bar, pdf_path, midi_path, found_on, found_url, scale_letters(doh_pc),
+                    words_state, words.found if placed and words and words.source == "online" else None)
     (workdir / "result.json").write_text(json.dumps({**result.to_dict(), "polyphony": round(poly, 3)}, indent=2))
     progress("Done", 1.0)
     return result
+
+
+def find_words(song: Song, duration: float) -> lyr.Words | None:
+    """The song's words from the lyrics library, or None. Never fails the song."""
+    title = song.track or lyr.clean_title(song.title)
+    try:
+        return lyr.find(title, song.artist, duration, also=f"{song.title} {song.channel} {song.found_on or ''}")
+    except Exception:
+        return None
 
 
 def _rms(y: np.ndarray) -> float:

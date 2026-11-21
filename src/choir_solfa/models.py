@@ -69,3 +69,4 @@ class Score:
     parts: dict[str, list[QNote]]
     kind: str            # "choir" (parts heard) or "solo" (parts arranged)
     notes: list[str] = field(default_factory=list)
+    words: dict[int, str] = field(default_factory=dict)  # grid cell -> syllables sung there (soprano)

@@ -29,6 +29,8 @@ def main(argv: list[str] | None = None) -> int:
     make.add_argument("--mode", choices=["auto", "choir", "solo"], default="auto")
     make.add_argument("--time", choices=["auto", *METERS], default="auto")
     make.add_argument("--title", default=None)
+    make.add_argument("--lyrics", default=None, metavar="FILE",
+                      help="a text file with the words (found online for links if left out)")
 
     args = parser.parse_args(argv)
     if args.cmd == "make":
@@ -52,9 +54,17 @@ def _make(args) -> int:
     def progress(stage: str, frac: float) -> None:
         print(f"\r{int(frac * 100):3d}%  {stage:<60}", end="", file=sys.stderr, flush=True)
 
+    words = None
+    if args.lyrics:
+        try:
+            words = Path(args.lyrics).read_text(encoding="utf-8")
+        except OSError as e:
+            print(f"Could not read the words file: {e}", file=sys.stderr)
+            return 1
     with tempfile.TemporaryDirectory(prefix="choir-solfa-") as tmp:
         try:
-            result = run(args.song, Path(tmp), mode=args.mode, meter=args.time, title=args.title, progress=progress)
+            result = run(args.song, Path(tmp), mode=args.mode, meter=args.time, title=args.title, progress=progress,
+                         lyrics=words)
         except Exception as e:
             print(f"\nCould not make the score: {e}", file=sys.stderr)
             return 1
@@ -67,6 +77,12 @@ def _make(args) -> int:
     print(f"{result.title}: {result.key}, {result.meter}, M. {result.tempo}, {result.bars} bars ({result.kind})")
     if result.found_on:
         print(f"Audio taken from: {result.found_on} ({result.found_url})")
+    if result.words_found:
+        print(f"Words found online: {result.words_found}")
+    elif result.words == "missing":
+        print("No words found online. Add them with --lyrics FILE.")
+    elif result.words == "unplaced":
+        print("The words didn't fit the tune, so the score has none.")
     print(f"Saved {out} and {out.with_suffix('.mid')}")
     return 0
 

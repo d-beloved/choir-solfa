@@ -30,6 +30,9 @@ class Song:
     title: str
     found_on: str | None = None   # what was actually downloaded, when it differs from the link
     found_url: str | None = None
+    track: str = ""               # what the song is called and who sings it, when known (to find the words)
+    artist: str = ""
+    channel: str = ""
 
 
 def get_song(url: str, dest: Path, progress: Callable[[str], None] = lambda s: None) -> Song:
@@ -41,11 +44,12 @@ def get_song(url: str, dest: Path, progress: Callable[[str], None] = lambda s: N
         progress(f"Finding \u201c{track.title}\u201d to download")
         video = find_on_youtube(track)
         progress("Downloading the song")
-        path, _ = download(video["url"], dest)
-        return Song(path, track.title, found_on=video["title"], found_url=video["url"])
+        path, _, about = download(video["url"], dest)
+        return Song(path, track.title, found_on=video["title"], found_url=video["url"], track=track.title,
+                    artist=track.artist, channel=about.get("channel", ""))
     progress("Downloading the song")
-    path, title = download(url, dest)
-    return Song(path, title)
+    path, title, about = download(url, dest)
+    return Song(path, title, **about)
 
 
 def is_url(text: str) -> bool:
@@ -244,8 +248,8 @@ def _resolve_redirect(url: str) -> str:
         raise FetchError("Couldn't open that Spotify short link. Try copying the song link again.") from e
 
 
-def download(url: str, dest: Path) -> tuple[Path, str]:
-    """Download the audio behind a link. Returns (file path, song title)."""
+def download(url: str, dest: Path) -> tuple[Path, str, dict]:
+    """Download the audio behind a link. Returns (file path, title, {track, artist, channel})."""
     import yt_dlp
 
     if not is_url(url):
@@ -291,7 +295,9 @@ def download(url: str, dest: Path) -> tuple[Path, str]:
         if not found:
             raise FetchError("The download finished but no audio file was saved.")
         path = found[0]
-    return path, info.get("title") or "Untitled song"
+    about = {"track": str(info.get("track") or ""), "artist": str(info.get("artist") or info.get("creator") or ""),
+             "channel": str(info.get("channel") or info.get("uploader") or "")}
+    return path, info.get("title") or "Untitled song", about
 
 
 def use_upload(src: Path, dest: Path, original_name: str) -> tuple[Path, str]:

@@ -50,6 +50,7 @@ ADMIN_ROWS = 2000  # newest songs shown on the admin list
 UPLOAD_KEY = re.compile(r"^uploads/(?P<sub>[0-9a-zA-Z-]{1,64})/[0-9a-f]{32}$")
 JOB_ID = re.compile(r"^[0-9a-f]{32}$")
 METERS = ("4/4", "3/4", "2/4", "6/8")
+MAX_LYRICS = 10_000  # characters of pasted words
 # Not a song: a record whose version number makes new songs take turns, so two requests at the
 # same moment can't both slip under the limits (see _start_record).
 GATE = "_gate"
@@ -222,6 +223,10 @@ def create_job(user: dict, body: dict) -> dict:
     url = str(body.get("url") or "").strip()
     upload_key = str(body.get("upload_key") or "")
     upload_name = str(body.get("upload_name") or "")[:200]
+    lyrics = body.get("lyrics") or ""
+    if not isinstance(lyrics, str) or len(lyrics) > MAX_LYRICS:
+        raise Problem(400, "Those words are too long. Paste the words of one song.")
+    lyrics = lyrics.strip()
     if mode not in ("auto", "choir", "solo") or (meter != "auto" and meter not in METERS):
         raise Problem(400, "Unknown option.")
     if upload_key:
@@ -241,6 +246,8 @@ def create_job(user: dict, body: dict) -> dict:
             "stage": "Starting a machine for your song", "progress": 0, "heartbeat": now, "mode": mode, "meter": meter,
             "title_asked": title, "title": title or upload_name or url, "source": upload_name or url,
             "files_until": now + KEEP_DAYS * 86400}
+    if lyrics:
+        item["lyrics"] = lyrics
     if upload_key:
         item.update(upload_key=upload_key, upload_name=upload_name)
     else:
@@ -532,7 +539,7 @@ def _redo(item: dict) -> dict | None:
     if not item.get("url"):
         return None  # an upload's audio isn't kept, so it can't be made again
     return {"url": item["url"], "mode": item.get("mode", "auto"), "meter": item.get("meter", "auto"),
-            "title": item.get("title_asked", "")}
+            "title": item.get("title_asked", ""), "lyrics": item.get("lyrics", "")}
 
 
 def _expired(item: dict) -> bool:

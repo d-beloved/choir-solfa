@@ -53,7 +53,9 @@ def note_runs(pitch: int, part: str, doh_midi: int) -> list[Run]:
     return runs
 
 
-def render_pulse(pitch: list, onset: list, part: str, doh_midi: int) -> list[Run]:
+def render_pulse(pitch: list, onset: list, part: str, doh_midi: int, marks: bool = False) -> list[Run]:
+    """One pulse as runs. With `marks`, an empty ("", "@i") run comes before the note that starts
+    at cell i of the pulse, so words can be put under it (see `split_marks`)."""
     n = len(pitch)
 
     def is_event(i: int) -> bool:
@@ -65,7 +67,7 @@ def render_pulse(pitch: list, onset: list, part: str, doh_midi: int) -> list[Run
         if pitch[i] is None:
             return []
         if onset[i]:
-            return note_runs(pitch[i], part, doh_midi)
+            return ([("", f"@{i}")] if marks else []) + note_runs(pitch[i], part, doh_midi)
         return [("-", "n")]
 
     events = {i for i in range(n) if is_event(i)}
@@ -88,7 +90,8 @@ def render_pulse(pitch: list, onset: list, part: str, doh_midi: int) -> list[Run
     return out
 
 
-def render_part(qnotes: list[QNote], part: str, total: int, meter: Meter, doh_midi: int) -> list[list[list[Run]]]:
+def render_part(qnotes: list[QNote], part: str, total: int, meter: Meter, doh_midi: int,
+                marks: bool = False) -> list[list[list[Run]]]:
     """Return bars -> pulses -> runs for one part."""
     pitch, onset = cell_states(qnotes, total)
     cpp = meter.cells_per_pulse
@@ -97,9 +100,68 @@ def render_part(qnotes: list[QNote], part: str, total: int, meter: Meter, doh_mi
         pulses = []
         for p in range(meter.pulses_per_bar):
             s = b * meter.cells_per_bar + p * cpp
-            pulses.append(render_pulse(pitch[s:s + cpp], onset[s:s + cpp], part, doh_midi))
+            pulses.append(render_pulse(pitch[s:s + cpp], onset[s:s + cpp], part, doh_midi, marks))
         bars.append(pulses)
     return bars
+
+
+def join_syllables(texts: list[str]) -> str:
+    out = ""
+    for t in texts:
+        out = out + t if (not out or out.endswith("-")) else f"{out} {t}"
+    return out
+
+
+def split_marks(runs: list[Run]) -> tuple[list[Run], dict[int, int]]:
+    """Runs without the "@i" marks, and for each marked cell the number of runs before its note."""
+    clean: list[Run] = []
+    at: dict[int, int] = {}
+    for text, style in runs:
+        if style.startswith("@"):
+            at[int(style[1:])] = len(clean)
+        else:
+            clean.append((text, style))
+    return clean, at
+
+
+def render_words(score) -> list[list[list[tuple[int, str]]]]:
+    """Bars -> pulses -> (cell in the pulse, syllables sung there) under the soprano."""
+    m = score.meter
+    out = []
+    for b in range(score.total_cells // m.cells_per_bar):
+        bar = []
+        for p in range(m.pulses_per_bar):
+            s = b * m.cells_per_bar + p * m.cells_per_pulse
+            bar.append([(c - s, score.words[c]) for c in range(s, s + m.cells_per_pulse) if c in score.words])
+        out.append(bar)
+    return out
+
+
+def lay_words(syls: list[tuple[int, str]], runs: list[Run], measure, gap: float) -> list[tuple[float, str]]:
+    """Where each syllable starts: under its note in `runs` (marked soprano runs), or just
+    after the syllable before when that one is in the way. `measure` gives the width of
+    runs (a list) or of a syllable (a string)."""
+    clean, at = split_marks(runs)
+    out: list[tuple[float, str]] = []
+    end = None
+    for cell, text in syls:
+        x = measure(clean[:at[cell]]) if cell in at else 0.0
+        if end is not None:
+            x = max(x, end + gap)
+        out.append((x, text))
+        end = x + measure(text)
+    return out
+
+
+def words_line(laid: list[tuple[float, str]]) -> str:
+    line = ""
+    for x, text in laid:
+        line = line.ljust(int(x)) + text
+    return line
+
+
+def _text_measure(item) -> int:
+    return len(item) if isinstance(item, str) else len(runs_text(item))
 
 
 def bar_is_empty(qnotes_by_part: dict, bar: int, meter: Meter) -> bool:
@@ -138,14 +200,23 @@ def score_text(score, bars_per_line: int = 4) -> str:
     meter = score.meter
     rendered = {p: render_part(score.parts[p], p, score.total_cells, meter, score.doh_midi) for p in names}
     n_bars = score.total_cells // meter.cells_per_bar
+    words = render_words(score) if score.words else None
+    if words is not None:
+        marked = render_part(score.parts.get("Soprano", []), "Soprano", score.total_cells, meter, score.doh_midi, True)
+        words = [[words_line(lay_words(words[b][k], marked[b][k], _text_measure, 1)) for k in range(meter.pulses_per_bar)]
+                 for b in range(n_bars)]
     lines = [score.title, f"{key_label(score.doh_pc, score.tonic_pc, score.mode)}   {meter.name}   M. {round(score.tempo_bpm)}"]
     lines += score.notes
     for start in range(0, n_bars, bars_per_line):
         bars = list(range(start, min(n_bars, start + bars_per_line)))
         text = {p: [[runs_text(rendered[p][b][k]) for k in range(meter.pulses_per_bar)] for b in bars] for p in names}
-        width = [[max(len(text[p][i][k]) for p in names) for k in range(meter.pulses_per_bar)] for i in range(len(bars))]
+        rows = list(names)
+        if words is not None:
+            text["words"] = [[words[b][k] for k in range(meter.pulses_per_bar)] for b in bars]
+            rows.insert(rows.index("Soprano") + 1 if "Soprano" in rows else 0, "words")
+        width = [[max(len(text[p][i][k]) for p in rows) for k in range(meter.pulses_per_bar)] for i in range(len(bars))]
         lines += ["", f"Bar {start + 1}"]
-        for p in names:
+        for p in rows:
             row = []
             for i in range(len(bars)):
                 cells = [text[p][i][0].ljust(width[i][0])]
@@ -153,7 +224,10 @@ def score_text(score, bars_per_line: int = 4) -> str:
                     cells.append(f"{meter.separators[k - 1]}{text[p][i][k].ljust(width[i][k])}")
                 row.append(" ".join(cells))
             end = " ||" if bars[-1] == n_bars - 1 else " |"
-            lines.append(f"{p[0]}  | " + " | ".join(row) + end)
+            label = " " if p == "words" else p[0]
+            lines.append(f"{label}  | " + " | ".join(row) + end)
     lines += ["", "How to read: | bar line   : beat   - hold the note   . half beat   , quarter beat   "
                   "d¹ higher   s₁ lower   (blank) rest"]
+    if words is not None:
+        lines.append("The words are under the soprano line. Si- means the word goes on to the next note.")
     return "\n".join(lines) + "\n"

@@ -12,11 +12,12 @@ from reportlab.lib.utils import simpleSplit
 from reportlab.pdfgen import canvas
 
 from .models import Score
-from .notation import bar_is_empty, render_part
+from .notation import bar_is_empty, lay_words, render_part, render_words
 from .theory import PARTS, key_label, scale_letters
 
 FONT, BOLD, ITALIC = "Helvetica", "Helvetica-Bold", "Helvetica-Oblique"
-SIZE, SMALL = 10.5, 6.5
+SIZE, SMALL, WORD_SIZE = 10.5, 6.5, 9
+WORDS_H = 13
 MARGIN = 40
 LABEL_W = 20
 ROW_H = 15
@@ -46,11 +47,28 @@ def _sep_w(sep: str) -> float:
     return stringWidth(sep, FONT, SIZE) + 4
 
 
+def _words_measure(item) -> float:
+    return stringWidth(item, ITALIC, WORD_SIZE) if isinstance(item, str) else _runs_width(item)
+
+
+def _words_width(laid) -> float:
+    """Width of one pulse of laid-out words: (x, syllable) pairs."""
+    return max((x + stringWidth(t, ITALIC, WORD_SIZE) + 3 for x, t in laid), default=0.0)
+
+
 def build_items(score: Score) -> tuple[list, dict]:
     """Bars as layout items; runs of 2+ empty bars become one 'rest' item."""
     names = [p for p in PARTS if p in score.parts]
     rendered = {p: render_part(score.parts[p], p, score.total_cells, score.meter, score.doh_midi) for p in names}
     n_bars = score.total_cells // score.meter.cells_per_bar
+    words = render_words(score) if score.words else None
+    if words is not None:
+        m = score.meter
+        marked = render_part(score.parts.get("Soprano", []), "Soprano", score.total_cells, m, score.doh_midi, True)
+        gap = stringWidth(" ", ITALIC, WORD_SIZE) + 1
+        words = [[lay_words(words[b][p], marked[b][p], _words_measure, gap) for p in range(m.pulses_per_bar)]
+                 for b in range(n_bars)]
+        rendered["words"] = words
     items: list = []
     b = 0
     while b < n_bars:
@@ -65,6 +83,8 @@ def build_items(score: Score) -> tuple[list, dict]:
         widths = []
         for p in range(score.meter.pulses_per_bar):
             w = max(_runs_width(rendered[name][b][p]) for name in names)
+            if words is not None:
+                w = max(w, _words_width(words[b][p]))
             widths.append(max(MIN_PULSE, w) + 2 * PULSE_PAD)
         items.append(("bar", b, widths))
         b += 1
@@ -121,7 +141,18 @@ def write_pdf(score: Score, path: str) -> None:
         c.drawString(MARGIN, y, line[:140])
     y -= 26
 
-    system_h = ROW_H * len(names)
+    # One row per part, with the words under the soprano.
+    rows, row_y, offset = [], [], 0.0
+    for name in names:
+        rows.append(name)
+        row_y.append(offset)
+        offset += ROW_H
+        if name == "Soprano" and "words" in rendered:
+            rows.append("words")
+            row_y.append(offset - 1)
+            offset += WORDS_H
+    system_h = offset
+    part_rows = [r for r, name in enumerate(rows) if name != "words"]
     for system in systems:
         if y - system_h < MARGIN + 10:
             footer()
@@ -134,19 +165,18 @@ def write_pdf(score: Score, path: str) -> None:
         c.setFillGray(0.45)
         c.drawString(MARGIN + LABEL_W, top + 9, str(system[0][1] + 1))
         c.setFillGray(0)
-        for r, name in enumerate(names):
-            ry = top - r * ROW_H
+        for r in part_rows:
             c.setFont(BOLD, SIZE)
-            c.drawString(MARGIN, ry, LABELS[name])
+            c.drawString(MARGIN, top - row_y[r], LABELS[rows[r]])
         x = MARGIN + LABEL_W
         for item in system:
-            for r in range(len(names)):
+            for r in part_rows:
                 c.setFont(FONT, SIZE)
-                c.drawString(x + 2, top - r * ROW_H, "|")
+                c.drawString(x + 2, top - row_y[r], "|")
             x += _sep_w("|")
             if item[0] == "rest":
                 c.setFont(ITALIC, SIZE - 1)
-                mid = top - (len(names) - 1) * ROW_H / 2
+                mid = top - (row_y[part_rows[0]] + row_y[part_rows[-1]]) / 2
                 c.drawString(x + 8, mid, f"{item[2]} bars rest")
                 x += _item_width(item, score) - _sep_w("|")
                 continue
@@ -154,17 +184,24 @@ def write_pdf(score: Score, path: str) -> None:
             for p, w in enumerate(widths):
                 if p > 0:
                     sep = score.meter.separators[p - 1]
-                    for r in range(len(names)):
+                    for r in part_rows:
                         c.setFont(FONT, SIZE)
-                        c.drawString(x + 2, top - r * ROW_H, sep)
+                        c.drawString(x + 2, top - row_y[r], sep)
                     x += _sep_w(sep)
-                for r, name in enumerate(names):
-                    _draw_runs(c, x + PULSE_PAD, top - r * ROW_H, rendered[name][b][p])
+                for r, name in enumerate(rows):
+                    if name == "words":
+                        c.setFont(ITALIC, WORD_SIZE)
+                        c.setFillGray(0.2)
+                        for dx, text in rendered["words"][b][p]:
+                            c.drawString(x + PULSE_PAD + dx, top - row_y[r], text)
+                        c.setFillGray(0)
+                    else:
+                        _draw_runs(c, x + PULSE_PAD, top - row_y[r], rendered[name][b][p])
                 x += w
         end_mark = "||" if system is systems[-1] else "|"
-        for r in range(len(names)):
+        for r in part_rows:
             c.setFont(FONT, SIZE)
-            c.drawString(x + 2, top - r * ROW_H, end_mark)
+            c.drawString(x + 2, top - row_y[r], end_mark)
         y = top - system_h - SYSTEM_GAP
 
     footer()
@@ -318,5 +355,9 @@ def _write_key_page(c: canvas.Canvas, score: Score, page_w: float, page_h: float
          "so all four parts move together.", bullet=True)
     para("The practice audio (MIDI file) opens in GarageBand, MuseScore (free) or any music app that plays MIDI. "
          "Each part is its own track: mute the others to hear just yours, or slow it down.", bullet=True)
+    if score.words:
+        para("The words are printed under the soprano line. A syllable ending in a hyphen (Si-) means the word "
+             "goes on to the next note. A syllable held over several notes is printed once, under the first.",
+             bullet=True)
     para("This is an automatic transcription. Sing each part through and check it by ear before teaching it.",
          bullet=True)

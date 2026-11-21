@@ -97,6 +97,16 @@ def test_making_a_song_starts_one_task_and_keeps_a_record(api, aws):
     assert task["networkConfiguration"]["awsvpcConfiguration"]["subnets"] == ["s1", "s2"]
 
 
+def test_pasted_words_go_to_the_song_machine_and_can_be_used_again(api, aws):
+    words = "Silent night, holy night\nAll is calm, all is bright"
+    status, made = call(api, "POST", "/api/jobs", body={"url": "https://youtu.be/CZmC4qqL_Rg", "lyrics": f"  {words}\n"})
+    assert status == 200
+    assert aws.get_item(Key={"id": made["id"]})["Item"]["lyrics"] == words
+    assert call(api, "GET", f"/api/jobs/{made['id']}")[1]["redo"]["lyrics"] == words
+    too_long = call(api, "POST", "/api/jobs", body={"url": "https://youtu.be/a", "lyrics": "la " * 4000})
+    assert too_long[0] == 400
+
+
 def test_bad_requests(api):
     assert call(api, "POST", "/api/jobs", body={"url": "not a link"})[0] == 400
     assert call(api, "POST", "/api/jobs", body={"url": "https://x.y/z", "mode": "loud"})[0] == 400
@@ -253,7 +263,7 @@ def test_worker_makes_the_song_and_cleans_up(aws, monkeypatch, tmp_path):
     s3 = boto3.client("s3")
     s3.put_object(Bucket=BUCKET, Key="uploads/u1/x", Body=b"audio")
     job = {"id": "1" * 32, "user": "u1", "status": "waiting", "upload_key": "uploads/u1/x", "upload_name": "choir.mp3",
-           "mode": "auto", "meter": "auto", "title_asked": ""}
+           "mode": "auto", "meter": "auto", "title_asked": "", "lyrics": "Holy, holy, holy"}
     aws.put_item(Item=job)
     seen = {}
 
@@ -275,6 +285,7 @@ def test_worker_makes_the_song_and_cleans_up(aws, monkeypatch, tmp_path):
     cloud_worker.make_song(job, aws, s3, BUCKET, max_seconds=600)
 
     assert seen["source"] == b"audio" and seen["upload_name"] == "choir.mp3" and seen["max_seconds"] == 600
+    assert seen["lyrics"] == "Holy, holy, holy"
     item = aws.get_item(Key={"id": job["id"]})["Item"]
     assert item["status"] == "done" and item["title"] == "My Choir" and json.loads(item["result"])["key"] == "Doh is C"
     keys = {o["Key"] for o in s3.list_objects_v2(Bucket=BUCKET)["Contents"]}

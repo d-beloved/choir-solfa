@@ -27,6 +27,7 @@ JOBS = HOME / "jobs"
 CODE = Path(__file__).parent
 WEB = CODE / "web"
 MAX_UPLOAD = 300 * 1024 * 1024
+MAX_LYRICS = 10_000  # characters of pasted words
 JOB_ID = re.compile(r"^[0-9a-f]{32}$")
 JOB_FILE = "job.json"  # how the song was asked for: link, settings, time
 
@@ -102,13 +103,16 @@ def create_app(port: int) -> FastAPI:
     @app.post("/api/jobs")
     async def create_job(
         url: str = Form(""), mode: str = Form("auto"), meter: str = Form("auto"), title: str = Form(""),
-        file: UploadFile | None = File(None),
+        lyrics: str = Form(""), file: UploadFile | None = File(None),
     ):
         from .fetch import is_url
         from .models import METERS
 
         if mode not in ("auto", "choir", "solo") or (meter != "auto" and meter not in METERS):
             raise HTTPException(400, "Unknown option.")
+        if len(lyrics) > MAX_LYRICS:
+            raise HTTPException(400, "Those words are too long. Paste the words of one song.")
+        lyrics = lyrics.strip()
         job_id = uuid.uuid4().hex
         workdir = JOBS / job_id  # the folder keeps the score after the server stops
         upload_name = None
@@ -131,12 +135,12 @@ def create_app(port: int) -> FastAPI:
             raise HTTPException(400, "Paste a link to a song or choose a file.")
 
         workdir.mkdir(parents=True, exist_ok=True)
-        redo = {"url": source, "mode": mode, "meter": meter, "title": title} if is_url(source) else None
+        redo = {"url": source, "mode": mode, "meter": meter, "title": title, "lyrics": lyrics} if is_url(source) else None
         info = {"title": title or upload_name or source, "source": source if is_url(source) else upload_name,
                 "created": time.time(), "redo": redo}
         (workdir / JOB_FILE).write_text(json.dumps(info, indent=2), encoding="utf-8")
         jobs.add(job_id, **info)
-        jobs.pool.submit(_run_job, jobs, job_id, source, workdir, mode, meter, title or None, upload_name)
+        jobs.pool.submit(_run_job, jobs, job_id, source, workdir, mode, meter, title or None, upload_name, lyrics)
         return {"id": job_id}
 
     @app.get("/api/jobs/{job_id}")
@@ -230,14 +234,15 @@ def _safe_name(title: str) -> str:
 
 
 def _run_job(jobs: Jobs, job_id: str, source: str, workdir: Path, mode: str, meter: str,
-             title: str | None, upload_name: str | None) -> None:
+             title: str | None, upload_name: str | None, lyrics: str = "") -> None:
     from .pipeline import run
 
     def progress(stage: str, frac: float) -> None:
         jobs.update(job_id, status="working", stage=stage, progress=round(frac, 3))
 
     try:
-        result = run(source, workdir, mode=mode, meter=meter, title=title, upload_name=upload_name, progress=progress)
+        result = run(source, workdir, mode=mode, meter=meter, title=title, upload_name=upload_name, progress=progress,
+                     lyrics=lyrics)
         jobs.update(job_id, status="done", stage="Done", progress=1.0, result=result.to_dict())
     except Exception as e:  # report any failure on the page in plain words
         jobs.update(job_id, status="failed", stage="Stopped", error=str(e) or e.__class__.__name__)
