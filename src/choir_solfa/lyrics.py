@@ -46,9 +46,16 @@ class Words:
 # ---------------------------------------------------------------- reading
 
 _TIME = re.compile(r"^\s*\[(\d+):(\d+(?:\.\d+)?)\]")
-_LABEL = re.compile(r"^\W*(verse|chorus|refrain|bridge|pre-?chorus|intro|outro|hook|interlude|coda|tag|repeat|"
-                    r"ending|instrumental|solo|all|choir|lead|call|response)\W*(\d+|[ivx]+)?\W*(x\s*\d+)?\W*$", re.I)
-_TIMES_NOTE = re.compile(r"\(\s*(?:x|×)?\s*\d+\s*(?:x|×)?\s*\)", re.I)
+# Matched against the line with punctuation turned into single spaces, so no two parts of the
+# pattern can match the same characters (keeps it fast on long lines of punctuation).
+_LABEL = re.compile(r"(?:verse|chorus|refrain|bridge|pre ?chorus|intro|outro|hook|interlude|coda|tag|repeat|"
+                    r"ending|instrumental|solo|all|choir|lead|call|response)(?: (?:\d+|[ivx]+))?(?: x ?\d+)?", re.I)
+_TIMES_NOTE = re.compile(r"\(\s*(?:[x×]\s*)?\d+\s*(?:[x×]\s*)?\)", re.I)
+
+
+def _is_label(line: str) -> bool:
+    words = " ".join(re.sub(r"[\W_]+", " ", line).split())
+    return len(words) <= 40 and _LABEL.fullmatch(words) is not None
 
 
 def parse(text: str, asides: bool = True) -> list[Line]:
@@ -67,7 +74,7 @@ def parse(text: str, asides: bool = True) -> list[Line]:
         if not asides:
             raw = re.sub(r"\([^)]*\)?", " ", raw)
         raw = re.sub(r"\s+([,;:.!?])", r"\1", " ".join(raw.split())).lstrip(",;:.!? ")
-        if not raw or _LABEL.match(raw) or not any(ch.isalpha() for ch in raw):
+        if not raw or _is_label(raw) or not any(ch.isalpha() for ch in raw):
             continue
         for t in times or [None]:
             lines.append(Line(raw, t))

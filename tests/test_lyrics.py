@@ -1,6 +1,8 @@
 """Song words: reading them, finding them online, syllables, and placing them under the soprano."""
 from __future__ import annotations
 
+import time
+
 import pretty_midi
 
 from choir_solfa import lyrics
@@ -35,6 +37,14 @@ def test_reading_plain_words_and_lrc():
                                                           ("Silent night", 20.0)]
     assert all(line.time is None for line in parse("[00:01.00] one\ntwo"))  # partly timed: times not trusted
 
+
+
+def test_section_labels_are_dropped_and_long_lines_stay_quick():
+    text = "[Verse 1]\nChorus (x2)\nPre-Chorus:\nCHORUS x2\nAll is calm\nLead me home\n" + "chorus" + "!" * 9000 + "a"
+    t = time.perf_counter()
+    lines = [line.text for line in parse(text)]
+    assert time.perf_counter() - t < 2
+    assert lines[:2] == ["All is calm", "Lead me home"]
 
 def test_syllables_in_english_and_yoruba():
     assert [syllables(w) for w in ["Silent", "night,", "holy", "heavenly", "little", "peace.", "loved", "singing"]] == \
