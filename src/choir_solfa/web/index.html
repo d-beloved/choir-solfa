@@ -240,11 +240,12 @@
   .sub { color: var(--muted); margin: 0 0 18px; font-size: 15px; }
 
   .field-label { display: block; font-weight: 600; font-size: 15px; margin-bottom: 8px; }
-  input[type=url], input[type=text] {
+  input[type=url], input[type=text], textarea {
     width: 100%; font: inherit; font-size: 18px; color: var(--ink); background: var(--bg);
     border: 2px solid var(--rule); border-radius: 14px; padding: 15px 16px; transition: border-color .15s, box-shadow .15s; }
-  input::placeholder { color: var(--muted); opacity: .8; }
-  input:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 5px var(--primary-soft); }
+  textarea { font-size: 16px; line-height: 1.5; padding: 12px 14px; resize: vertical; min-height: 140px; display: block; }
+  :is(input, textarea)::placeholder { color: var(--muted); opacity: .8; }
+  :is(input, textarea):focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 5px var(--primary-soft); }
   .badge { display: inline-flex; align-items: center; gap: 6px; margin-top: 10px; padding: 5px 13px 5px 10px;
            border-radius: 99px; font-size: 14px; font-weight: 600; }
   .badge.ok { background: var(--good-soft); color: var(--good); }
@@ -367,6 +368,9 @@
   .fixes h3 { font-size: 15px; margin: 0 0 4px; }
   .fixes p { font-size: 14px; color: var(--muted); margin: 0 0 12px; }
   .fixes .row { display: flex; flex-wrap: wrap; gap: 8px; }
+  .words-fix { margin-top: 16px; }
+  .words-fix summary { cursor: pointer; font-weight: 600; font-size: 15px; color: var(--teal); }
+  .words-fix textarea { margin: 12px 0; }
   .preview-wrap { margin-top: 22px; }
   .preview-wrap h3 { font-family: var(--display); font-weight: 700; font-size: 20px; margin: 0; }
   .preview-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 10px; }
@@ -505,6 +509,11 @@
   .sheet-bar i.d { color: #d13a2e; } .sheet-bar i.r { color: #d86a12; } .sheet-bar i.m { color: #b8850a; }
   .sheet-bar i.f { color: #3a8d32; } .sheet-bar i.s { color: #127f8f; } .sheet-bar i.l { color: #3b5cc0; } .sheet-bar i.t { color: #8e43a8; }
   .sheet-bar sup { font-size: .6em; }
+  /* The words under the soprano: each sits in a slot as wide as the notes before the next one. */
+  .sheet-row.sheet-words { margin-top: -8px; background: none; line-height: 1.5; }
+  .sheet-words .sheet-bar, .sheet-row.sheet-words .sheet-bar:last-child { border-color: transparent; }
+  .sheet-words .w { display: inline-block; }
+  .sheet-words i { font: italic 500 12.5px var(--sans); color: #4a4f73; letter-spacing: 0; }
   @keyframes write { from { opacity: 0; transform: translateY(-6px) scale(1.4); } }
   .sheet figcaption { margin-top: 12px; font-size: 13px; color: #62678a; }
 
@@ -685,15 +694,16 @@
       </div>
       <div class="stage">
         <div class="chimes" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div>
-        <figure class="sheet" role="img" aria-label="An example score: the opening of Silent Night for soprano, alto, tenor and bass in tonic solfa.">
+        <figure class="sheet" role="img" aria-label="An example score: the opening of Silent Night for soprano, alto, tenor and bass in tonic solfa, with the words under the soprano.">
           <div class="sheet-head"><b>Silent Night</b><span>Doh is B♭ · 3/4</span></div>
           <div class="sheet-rows" aria-hidden="true">
           <div class="sheet-row"><b>S</b><span class="sheet-bar"><i class="s" style="--i:0">s</i>&nbsp;:–.<i class="l" style="--i:1">l</i>&nbsp;:<i class="s" style="--i:2">s</i></span><span class="sheet-bar"><i class="m" style="--i:3">m</i>&nbsp;:–&nbsp;:–</span><span class="sheet-bar extra"><i class="s" style="--i:4">s</i>&nbsp;:–.<i class="l" style="--i:5">l</i>&nbsp;:<i class="s" style="--i:6">s</i></span><span class="sheet-bar extra"><i class="m" style="--i:7">m</i>&nbsp;:–&nbsp;:–</span></div>
+          <div class="sheet-row sheet-words"><b></b><span class="sheet-bar"><span class="w" style="width:5ch"><i style="--i:0">Si-</i></span><span class="w" style="width:3ch"><i style="--i:1">lent</i></span><i style="--i:2">night,</i></span><span class="sheet-bar"></span><span class="sheet-bar extra"><span class="w" style="width:5ch"><i style="--i:4">ho-</i></span><span class="w" style="width:3ch"><i style="--i:5">ly</i></span><i style="--i:6">night</i></span><span class="sheet-bar extra"></span></div>
           <div class="sheet-row"><b>A</b><span class="sheet-bar"><i class="m" style="--i:8">m</i>&nbsp;:–.<i class="f" style="--i:9">f</i>&nbsp;:<i class="m" style="--i:10">m</i></span><span class="sheet-bar"><i class="d" style="--i:11">d</i>&nbsp;:–&nbsp;:–</span><span class="sheet-bar extra"><i class="m" style="--i:12">m</i>&nbsp;:–.<i class="f" style="--i:13">f</i>&nbsp;:<i class="m" style="--i:14">m</i></span><span class="sheet-bar extra"><i class="d" style="--i:15">d</i>&nbsp;:–&nbsp;:–</span></div>
           <div class="sheet-row"><b>T</b><span class="sheet-bar"><i class="d" style="--i:16">d<sup>1</sup></i>&nbsp;:–.<i class="d" style="--i:17">d<sup>1</sup></i>&nbsp;:<i class="d" style="--i:18">d<sup>1</sup></i></span><span class="sheet-bar"><i class="s" style="--i:19">s</i>&nbsp;:–&nbsp;:–</span><span class="sheet-bar extra"><i class="d" style="--i:20">d<sup>1</sup></i>&nbsp;:–.<i class="d" style="--i:21">d<sup>1</sup></i>&nbsp;:<i class="d" style="--i:22">d<sup>1</sup></i></span><span class="sheet-bar extra"><i class="s" style="--i:23">s</i>&nbsp;:–&nbsp;:–</span></div>
           <div class="sheet-row"><b>B</b><span class="sheet-bar"><i class="d" style="--i:24">d</i>&nbsp;:–.<i class="d" style="--i:25">d</i>&nbsp;:<i class="d" style="--i:26">d</i></span><span class="sheet-bar"><i class="d" style="--i:27">d</i>&nbsp;:–&nbsp;:–</span><span class="sheet-bar extra"><i class="d" style="--i:28">d</i>&nbsp;:–.<i class="d" style="--i:29">d</i>&nbsp;:<i class="d" style="--i:30">d</i></span><span class="sheet-bar extra"><i class="d" style="--i:31">d</i>&nbsp;:–&nbsp;:–</span></div>
           </div>
-          <figcaption>An example of how the parts are written out.</figcaption>
+          <figcaption>An example of how the parts and words are written out.</figcaption>
         </figure>
       </div>
     </section>
@@ -821,6 +831,16 @@
       </div>
       <input type="file" id="file" accept="audio/*,video/*,.mp3,.wav,.m4a,.aac,.flac,.ogg,.opus,.webm,.mp4,.mov" hidden>
 
+      <details class="settings" id="wordsBox">
+        <summary>Words <small id="wordsHint">(optional: for a link they're found for you)</small></summary>
+        <div class="setting">
+          <label class="field-label" for="lyrics">The words of the song</label>
+          <textarea id="lyrics" rows="7" maxlength="10000" spellcheck="false"
+                    placeholder="Silent night, holy night&#10;All is calm, all is bright"></textarea>
+          <div class="help">Printed under the soprano line. Put each line of the song on its own line, with any repeats, as it's sung.</div>
+        </div>
+      </details>
+
       <details class="settings" id="settings">
         <summary>Settings <small>(optional: these are worked out for you)</small></summary>
         <div class="setting">
@@ -884,6 +904,7 @@
       <div class="facts" id="facts"></div>
       <p class="kind-note" id="kindNote"></p>
       <p class="source-note" id="sourceNote" hidden></p>
+      <p class="source-note" id="wordsNote" hidden></p>
       <div class="expired-note" id="expiredNote" hidden>
         <span id="expiredText"></span><br>
         <button type="button" class="quiet" id="remake" hidden>Make it again</button>
@@ -902,6 +923,12 @@
         <h3>Doesn't look right?</h3>
         <p>Choose what's true and it will be made again.</p>
         <div class="row" id="fixRow"></div>
+        <details class="words-fix" id="wordsFix">
+          <summary id="wordsFixLabel">Add or correct the words</summary>
+          <textarea id="fixLyrics" aria-label="The words of the song" rows="7" maxlength="10000" spellcheck="false"
+                    placeholder="One line of the song on each line, as it's sung"></textarea>
+          <button type="button" class="quiet" id="fixWords">Make it again with these words</button>
+        </details>
       </div>
 
       <div class="preview-wrap" id="previewWrap">
@@ -1305,6 +1332,8 @@ function setFile(f) {
   $("fileName").textContent = f ? f.name : "";
   if (f) $("url").value = "";
   $("file").value = "";
+  if (f) $("wordsBox").open = true;
+  $("wordsHint").textContent = f ? "(paste them to print them under the notes)" : "(optional: for a link they're found for you)";
   refreshReady();
 }
 $("pickFile").addEventListener("click", () => $("file").click());
@@ -1339,7 +1368,7 @@ $("form").addEventListener("submit", (e) => {
   e.preventDefault();
   const link = describeLink($("url").value);
   if (!chosenFile && !(link && link.ok)) { showFormError(link ? link.label : "Paste a link or choose a file first."); return; }
-  lastBody = { mode: choice("mode"), meter: choice("meter"), title: $("title").value.trim(),
+  lastBody = { mode: choice("mode"), meter: choice("meter"), title: $("title").value.trim(), lyrics: $("lyrics").value.trim(),
                file: chosenFile, url: chosenFile ? "" : $("url").value.trim() };
   start(lastBody);
 });
@@ -1353,6 +1382,7 @@ async function start(req) {
     let data;
     if (CLOUD) {
       const ask = { mode: req.mode, meter: req.meter, title: req.title };
+      if (req.lyrics) ask.lyrics = req.lyrics;
       if (!limits.admin && limits.left_today === 0)  // before sending a file that can't be used
         throw new Error(`You've made ${limits.daily_limit} songs today, the most for one day. Come back tomorrow for more.`);
       if (req.file) {
@@ -1367,6 +1397,7 @@ async function start(req) {
     } else {
       const body = new FormData();
       body.append("mode", req.mode); body.append("meter", req.meter); body.append("title", req.title);
+      if (req.lyrics) body.append("lyrics", req.lyrics);
       if (req.file) body.append("file", req.file); else body.append("url", req.url);
       data = await apiJson("/api/jobs", { method: "POST", body });
     }
@@ -1421,7 +1452,8 @@ function fail(msg) {
 }
 $("tryAgain").addEventListener("click", () => { show("form"); refreshReady(); $("url").focus(); });
 $("another").addEventListener("click", () => {
-  $("url").value = ""; $("title").value = ""; setChoice("mode", "auto"); setChoice("meter", "auto");
+  $("url").value = ""; $("title").value = ""; $("lyrics").value = ""; $("wordsBox").open = false;
+  setChoice("mode", "auto"); setChoice("meter", "auto");
   setFile(null); setGuideKey(null); show("form"); $("url").focus();
 });
 
@@ -1459,6 +1491,20 @@ function showResult(id, job) {
     } else { note.append(r.found_on); }
     note.append(". Have a listen to check it's the right recording.");
   }
+
+  const words = $("wordsNote");
+  const wordsText = {
+    you: "Your words are printed under the soprano line. Check where each syllable falls.",
+    online: `The words were found online${r.words_found ? ` (“${r.words_found}”)` : ""} and printed under the soprano line. ` +
+      "Check they match this recording and where each syllable falls.",
+    missing: "We couldn't find the words for this song." + (lastBody ? " Paste them below and it will be made again with the words under the notes." : ""),
+    unplaced: "The words didn't fit the tune, so they're not on the score. Check they're the words of this song, written as sung.",
+  }[r.words] || (r.words === null && lastBody ? "To print the words under the notes, paste them below and make it again." : "");
+  words.textContent = wordsText;
+  words.hidden = !wordsText;
+  $("fixLyrics").value = (lastBody && lastBody.lyrics) || "";
+  $("wordsFixLabel").textContent = r.words === "you" || r.words === "online" ? "Correct the words" : "Add the words";
+  $("wordsFix").open = !!lastBody && (r.words === "missing" || r.words === "unplaced" || r.words === null);
 
   // On the website the files are deleted after a while; the record of the song stays.
   const expired = !!job.expired;
@@ -1504,6 +1550,13 @@ function showResult(id, job) {
     .catch(() => { $("preview").textContent = "Couldn't load the preview. The PDF download still works."; });
 }
 $("remake").addEventListener("click", () => { if (lastBody) start(lastBody); });
+$("fixWords").addEventListener("click", () => {
+  const text = $("fixLyrics").value.trim();
+  if (!lastBody || !text) { $("fixLyrics").focus(); return; }
+  lastBody.lyrics = text;
+  $("lyrics").value = text;
+  start(lastBody);
+});
 
 /* ---------- Your songs: a pop-up list, a page at a time ---------- */
 const PAGE_SIZE = 8;

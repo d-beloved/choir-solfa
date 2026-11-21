@@ -21,4 +21,6 @@ def write_midi(score: Score, path: str) -> None:
                 start=n.start * seconds_per_cell, end=n.end * seconds_per_cell,
             ))
         pm.instruments.append(inst)
+    for cell, text in sorted(score.words.items()):
+        pm.lyrics.append(pretty_midi.Lyric(text=text, time=cell * seconds_per_cell))
     pm.write(path)

@@ -4,7 +4,7 @@
 
 ![The first bars of Silent Night as written out by Choir Solfa](.github/score.png)
 
-Give it a song (a link or an audio file). Get the tonic solfa for soprano, alto, tenor and bass as a printable PDF, plus a text version and a MIDI file to practise with.
+Give it a song (a link or an audio file). Get the tonic solfa for soprano, alto, tenor and bass as a printable PDF, with the words under the soprano, plus a text version and a MIDI file to practise with.
 
 - **A choir singing parts:** each part is transcribed as it was sung.
 - **One lead singer:** the melody becomes the soprano line, and alto, tenor and bass are written as a hymn-style arrangement under it.
@@ -49,7 +49,7 @@ From the command line:
 ```bash
 .venv/bin/choir-solfa make "https://open.spotify.com/track/..." -o out/
 .venv/bin/choir-solfa make "https://www.youtube.com/watch?v=..." -o out/
-.venv/bin/choir-solfa make song.mp3 --mode solo --time 3/4 --title "Silent Night"
+.venv/bin/choir-solfa make song.mp3 --mode solo --time 3/4 --title "Silent Night" --lyrics words.txt
 ```
 
 `--mode` is `auto`, `choir` or `solo`. `--time` is `auto`, `4/4`, `3/4`, `2/4` or `6/8`.
@@ -82,6 +82,8 @@ You don't need to read solfa already. The page has a **How to read the score** g
 
 For example, Silent Night opens `s :-.l :s | m :- :-` in 3/4: s on beat 1, s held through half of beat 2 and then l, s on beat 3, then m held for a whole bar.
 
+**The words.** For a link, the words are looked up and written under the soprano, each syllable under the note it's sung on. `Si- lent` means the word goes on to the next note. For an uploaded file, or when the words aren't found, paste them under **Words** on the page, each line of the song on its own line, with any repeats, as it's sung. From the command line, use `--lyrics words.txt`.
+
 **Practising.** Each part has its own row (S, A, T, B), and the beat marks line up down the page. The MIDI file opens in GarageBand, MuseScore or any MIDI player. Each part is a separate track named Soprano, Alto, Tenor and Bass, so you can mute the others or slow it down. The text version ends with a one-line key.
 
 ## How it works
@@ -94,7 +96,8 @@ For example, Silent Night opens `s :-.l :s | m :- :-` in 3/4: s on beat 1, s hel
 6. **Write the parts:**
    - Choir: notes are sorted into four parts by range, keeping each line smooth.
    - Solo: pyin follows the melody, then chords are chosen per beat and voiced with standard part-writing rules (no parallel fifths or octaves).
-7. **Lay out the score:** standard Curwen notation (`d :r .m ,f`, `-` to hold, octave marks d¹ and d₁). Tenor and bass are written an octave above where they sound, as is customary.
+7. **Place the words:** for links, the words come from [LRCLIB](https://lrclib.net). Each syllable is matched to a soprano note, allowing for held notes, rests between lines and lines the singers leave out.
+8. **Lay out the score:** standard Curwen notation (`d :r .m ,f`, `-` to hold, octave marks d¹ and d₁). Tenor and bass are written an octave above where they sound, as is customary.
 
 ## Limits
 
@@ -105,6 +108,7 @@ This is automatic transcription. Treat the result as a first draft and check eve
 - **Held notes:** a held note sometimes shows as re-sung, especially when another part changes words at the same moment.
 - **Time signature:** only 3/4 and 4/4 are guessed. Choose 6/8 or 2/4 yourself.
 - **Key changes:** the song is written in a single key.
+- **Words:** they are placed by matching syllables to the notes heard, so check where each one falls. Later verses can drift where the singing is unclear.
 - **Spotify matches:** the YouTube copy is found by title, artist and length. It is usually the same recording, but listen to check.
 - **Solo or choir:** a solo singer over a busy piano can be taken for a choir. Choose "One lead singer" if so.
 
