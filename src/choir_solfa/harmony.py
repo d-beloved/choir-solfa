@@ -124,7 +124,14 @@ def choose_chords(melody: list[QNote], doh_pc: int, mode: str, meter: Meter, tot
     return out[::-1]
 
 
-def _voicings(sop: int, chord: str, doh_pc: int) -> list[tuple[float, tuple[int, int, int]]]:
+def _voicings(sop: int, chord: str, doh_pc: int, strict: bool = True) -> list[tuple[float, tuple[int, int, int]]]:
+    """Alto, tenor and bass notes from the chord, cheapest first.
+
+    Strict voicings keep the alto at or below the melody and within an octave
+    of it. When the melody sits too low for that, the relaxed ones still use
+    chord tones in each part's range, so the parts never fall back to notes
+    outside the chord.
+    """
     degrees = CHORDS[chord]
     pcs = [(doh_pc + d) % 12 for d in degrees]
     root, third, fifth = pcs[0], pcs[1], pcs[2]
@@ -136,10 +143,10 @@ def _voicings(sop: int, chord: str, doh_pc: int) -> list[tuple[float, tuple[int,
         for t in range(max(b, TENOR[0]), TENOR[1] + 1):
             if t % 12 not in pcset or t - b > 19:
                 continue
-            for a in range(max(t, ALTO[0]), min(ALTO[1], sop) + 1):
-                if a % 12 not in pcset or a - t > 12 or sop - a > 12:
+            for a in range(max(t, ALTO[0]), (min(ALTO[1], sop) if strict else ALTO[1]) + 1):
+                if a % 12 not in pcset or a - t > 12 or (strict and sop - a > 12):
                     continue
-                cost = 0.0
+                cost = 0.0 if strict else 0.3 * abs(a - sop)
                 bpc = b % 12
                 if bpc == third:
                     cost += 0.8
@@ -203,7 +210,7 @@ def harmonize(melody: list[QNote], doh_pc: int, mode: str, meter: Meter, total: 
             s = e
 
     # Viterbi over voicings.
-    cands = [_voicings(sop, chord, doh_pc) or [(9.0, (min(sop, ALTO[1]), TENOR[0], BASS[0]))]
+    cands = [_voicings(sop, chord, doh_pc) or _voicings(sop, chord, doh_pc, strict=False)
              for _, _, sop, chord in segments]
     cost = [c for c, _ in cands[0]]
     back = []

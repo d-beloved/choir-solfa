@@ -1,16 +1,16 @@
-"""Export the four parts as a MIDI file for practice."""
+"""Export the parts (and any lead line) as a MIDI file for practice."""
 from __future__ import annotations
 
 import pretty_midi
 
 from .models import Score
-from .theory import PARTS
+from .theory import LINES
 
 
 def write_midi(score: Score, path: str) -> None:
     pm = pretty_midi.PrettyMIDI(initial_tempo=score.tempo_bpm)
     seconds_per_cell = 60.0 / score.tempo_bpm / score.meter.cells_per_beat
-    for name in PARTS:
+    for name in LINES:
         notes = score.parts.get(name)
         if notes is None:
             continue

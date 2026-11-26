@@ -22,6 +22,8 @@ from pathlib import Path
 from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 
+from . import practice
+
 HOME = Path(os.environ.get("CHOIR_SOLFA_HOME", Path.home() / ".choir-solfa"))
 JOBS = HOME / "jobs"
 CODE = Path(__file__).parent
@@ -108,7 +110,7 @@ def create_app(port: int) -> FastAPI:
         from .fetch import is_url
         from .models import METERS
 
-        if mode not in ("auto", "choir", "solo") or (meter != "auto" and meter not in METERS):
+        if mode not in ("auto", "choir", "backing", "solo") or (meter != "auto" and meter not in METERS):
             raise HTTPException(400, "Unknown option.")
         if len(lyrics) > MAX_LYRICS:
             raise HTTPException(400, "Those words are too long. Paste the words of one song.")
@@ -152,7 +154,8 @@ def create_app(port: int) -> FastAPI:
 
     @app.get("/api/jobs/{job_id}/{name}")
     def job_file(job_id: str, name: str, download: int = 0):
-        files = {"score.pdf": "application/pdf", "score.mid": "audio/midi", "score.txt": "text/plain; charset=utf-8"}
+        files = {"score.pdf": "application/pdf", "score.mid": "audio/midi", "score.txt": "text/plain; charset=utf-8",
+                 **{track: "audio/mp4" for track in practice.TRACKS.values()}}
         if name not in files:
             raise HTTPException(404)
         job = jobs.get(_check(job_id)) or {}
@@ -160,7 +163,8 @@ def create_app(port: int) -> FastAPI:
         if not path.exists():
             raise HTTPException(404, "Not ready.")
         stem = _safe_name((job.get("result") or {}).get("title") or "score")
-        filename = f"{stem}{Path(name).suffix}"
+        part = {file: part for part, file in practice.TRACKS.items()}.get(name)
+        filename = f"{stem} - {part}{Path(name).suffix}" if part else f"{stem}{Path(name).suffix}"
         disposition = "attachment" if download else "inline"
         return FileResponse(path, media_type=files[name],
                             headers={"Content-Disposition": f'{disposition}; filename="{filename}"'})

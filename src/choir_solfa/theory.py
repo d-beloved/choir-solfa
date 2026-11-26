@@ -9,6 +9,9 @@ PC_NAMES = ["C", "Db", "D", "Eb", "E", "F", "F#", "G", "Ab", "A", "Bb", "B"]
 SYLLABLES = ["d", "de", "r", "ma", "m", "f", "fe", "s", "se", "l", "ta", "t"]
 
 PARTS = ("Soprano", "Alto", "Tenor", "Bass")
+# With backing singers, the lead singer's line is written above the four parts.
+LEAD = "Lead"
+LINES = (LEAD, *PARTS)
 MALE = frozenset({"Tenor", "Bass"})
 
 # Comfortable sounding ranges as MIDI numbers.
