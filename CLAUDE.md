@@ -1,6 +1,6 @@
 # choir-solfa
 
-A tool that turns a song (link or file) into a four-part (SATB) tonic solfa score: PDF, text and MIDI. It runs as a website on AWS (`cloud/`, `infra/`, see infra/README.md) and locally. See README.md for what it does and how.
+A tool that turns a song (link or file) into a four-part (SATB) tonic solfa score: PDF, text and practice tracks. It runs as a website on AWS (`cloud/`, `infra/`, see infra/README.md) and locally. See README.md for what it does and how.
 
 ## Environment
 - Use `.venv/bin/python` (native arm64 Python 3.11, made with uv). The system Python is x86 under Rosetta; don't use it.

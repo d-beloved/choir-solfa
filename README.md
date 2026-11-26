@@ -4,7 +4,7 @@
 
 ![The first bars of Silent Night as written out by Choir Solfa](.github/score.png)
 
-Give it a song (a link or an audio file). Get the tonic solfa for soprano, alto, tenor and bass as a printable PDF, with the words under the soprano, plus practice tracks (the recording with each part played on top), a text version and a MIDI file.
+Give it a song (a link or an audio file). Get the tonic solfa for soprano, alto, tenor and bass as a printable PDF, with the words under the soprano, plus practice tracks (the recording with each part played on top) and a text version.
 
 - **A choir singing parts:** each part is transcribed as it was sung.
 - **A lead singer with backing singers:** the backing singers' parts are written as soprano, alto, tenor and bass, and the lead singer's line (L) goes above them, with the words. A part the backing singers don't sing is filled in with a suggested one, and the score says when they are quiet beside the lead and so harder to hear.
@@ -85,7 +85,7 @@ For example, Silent Night opens `s :-.l :s | m :- :-` in 3/4: s on beat 1, s hel
 
 **The words.** For a link, the words are looked up and written under the soprano, each syllable under the note it's sung on. `Si- lent` means the word goes on to the next note. For an uploaded file, or when the words aren't found, paste them under **Words** on the page, each line of the song on its own line, with any repeats, as it's sung. From the command line, use `--lyrics words.txt`.
 
-**Practising.** Each part has its own row (S, A, T, B), and the beat marks line up down the page. Each part (and the lead line, when there is one) also gets a practice track: the recording with that part played on top in a soft tone, in time with the song, plus one track with all four parts. Where a written note is wrong you hear it clash with the singers, so the tracks are also the quickest way to check a score by ear. The MIDI file opens in GarageBand, MuseScore or any MIDI player. Each part is a separate track named Soprano, Alto, Tenor and Bass, so you can mute the others or slow it down. The text version ends with a one-line key.
+**Practising.** Each part has its own row (S, A, T, B), and the beat marks line up down the page. Each part (and the lead line, when there is one) also gets a practice track: the recording with that part played on top in a soft tone, in time with the song, plus one track with all four parts. Where a written note is wrong you hear it clash with the singers, so the tracks are also the quickest way to check a score by ear. The text version ends with a one-line key.
 
 ## How it works
 

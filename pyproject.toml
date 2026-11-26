@@ -19,7 +19,6 @@ dependencies = [
   "llvmlite<0.46; sys_platform == 'darwin' and platform_machine == 'x86_64'",
   # demucs 4.1 needs sphn, which has no Intel Mac wheels; 4.0.1 uses the same model.
   "demucs<4.1; sys_platform == 'darwin' and platform_machine == 'x86_64'",
-  "pretty_midi",
   "python-multipart",
   "reportlab",
   "setuptools<81",  # resampy (used by basic-pitch) still imports pkg_resources

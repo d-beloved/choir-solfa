@@ -1,4 +1,4 @@
-"""From a song to a solfa PDF and a MIDI file."""
+"""From a song to a solfa PDF, a text version and practice tracks."""
 from __future__ import annotations
 
 import json
@@ -11,7 +11,6 @@ import numpy as np
 from . import audio, karaoke, lyrics as lyr, practice
 from .fetch import Song, get_song, is_url, use_upload
 from .harmony import harmonize
-from .midi import write_midi
 from .models import METERS, Score
 from .notation import score_text
 from .pdf import write_pdf
@@ -41,7 +40,6 @@ class Result:
     tempo: int
     bars: int
     pdf: Path
-    midi: Path
     found_on: str | None = None
     found_url: str | None = None
     letters: list[str] = field(default_factory=list)  # d r m f s l t as letter names
@@ -54,7 +52,7 @@ class Result:
     def to_dict(self) -> dict:
         return {
             "title": self.title, "kind": self.kind, "key": self.key, "meter": self.meter,
-            "tempo": self.tempo, "bars": self.bars, "pdf": self.pdf.name, "midi": self.midi.name,
+            "tempo": self.tempo, "bars": self.bars, "pdf": self.pdf.name,
             "found_on": self.found_on, "found_url": self.found_url, "letters": self.letters,
             "words": self.words, "words_found": self.words_found, "tracks": self.tracks,
         }
@@ -241,9 +239,8 @@ def run(source: str, workdir: Path, *, mode: str = "auto", meter: str = "auto", 
     )
 
     progress("Making the PDF", 0.95)
-    pdf_path, midi_path = workdir / "score.pdf", workdir / "score.mid"
+    pdf_path = workdir / "score.pdf"
     write_pdf(score, str(pdf_path))
-    write_midi(score, str(midi_path))
     (workdir / "score.txt").write_text(score_text(score), encoding="utf-8")
 
     progress("Making the practice tracks", 0.97)
@@ -260,7 +257,7 @@ def run(source: str, workdir: Path, *, mode: str = "auto", meter: str = "auto", 
     tracks = practice.write_tracks(mix_m, parts, cell_time, workdir, SR)
 
     result = Result(title, kind, key_label(doh_pc, tonic_pc, key_mode), meter, int(round(tempo)),
-                    total // m.cells_per_bar, pdf_path, midi_path, found_on, found_url, scale_letters(doh_pc),
+                    total // m.cells_per_bar, pdf_path, found_on, found_url, scale_letters(doh_pc),
                     words_state, words.found if placed and words and words.source == "online" else None,
                     {name: path.name for name, path in tracks.items()})
     (workdir / "result.json").write_text(json.dumps({**result.to_dict(), "polyphony": round(poly, 3)}, indent=2))

@@ -154,7 +154,7 @@ def create_app(port: int) -> FastAPI:
 
     @app.get("/api/jobs/{job_id}/{name}")
     def job_file(job_id: str, name: str, download: int = 0):
-        files = {"score.pdf": "application/pdf", "score.mid": "audio/midi", "score.txt": "text/plain; charset=utf-8",
+        files = {"score.pdf": "application/pdf", "score.txt": "text/plain; charset=utf-8",
                  **{track: "audio/mp4" for track in practice.TRACKS.values()}}
         if name not in files:
             raise HTTPException(404)

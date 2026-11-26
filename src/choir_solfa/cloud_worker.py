@@ -3,7 +3,7 @@
 The website's API (cloud/api/handler.py) saves the request in DynamoDB and starts a
 Fargate task running `python -m choir_solfa.cloud_worker` with JOB_ID set. This reads the
 request, gets the song (link, or an upload in S3), runs the usual pipeline while writing
-progress to DynamoDB for the page to show, and puts the PDF, MIDI, text and practice tracks in S3.
+progress to DynamoDB for the page to show, and puts the PDF, text and practice tracks in S3.
 
 Environment: JOB_ID, TABLE, BUCKET, and optionally MAX_SONG_MINUTES and MAX_TASK_MINUTES.
 
@@ -27,7 +27,7 @@ import traceback
 import urllib.request
 from pathlib import Path
 
-FILES = {"score.pdf": "application/pdf", "score.mid": "audio/midi", "score.txt": "text/plain; charset=utf-8"}
+FILES = {"score.pdf": "application/pdf", "score.txt": "text/plain; charset=utf-8"}
 
 
 HEARTBEAT_SECONDS = 60  # the API counts a song as stopped after a few minutes without one (handler.STALE_SECONDS)

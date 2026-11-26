@@ -127,16 +127,12 @@ def test_text_has_the_lead_line_with_the_words_under_it():
     assert "The words are under the lead line." in text
 
 
-def test_pdf_and_midi_and_tracks_with_a_lead_line(tmp_path):
-    import pretty_midi
+def test_pdf_and_tracks_with_a_lead_line(tmp_path):
     from choir_solfa import practice
-    from choir_solfa.midi import write_midi
     from choir_solfa.pdf import write_pdf
     score = _backing_score()
     write_pdf(score, str(tmp_path / "s.pdf"))
     assert (tmp_path / "s.pdf").read_bytes()[:4] == b"%PDF"
-    write_midi(score, str(tmp_path / "s.mid"))
-    assert [i.name for i in pretty_midi.PrettyMIDI(str(tmp_path / "s.mid")).instruments][0] == "Lead"
     tracks = practice.write_tracks(np.zeros(practice.SR * 5, np.float32), score.parts,
                                    lambda c: c * 0.125, tmp_path)
     assert list(tracks) == ["Lead", "Soprano", "Alto", "Tenor", "Bass", "All parts"]

@@ -73,7 +73,6 @@ def _make(args) -> int:
         out = output_path(args.out, safe)
         out.parent.mkdir(parents=True, exist_ok=True)
         shutil.copyfile(result.pdf, out)
-        shutil.copyfile(result.midi, out.with_suffix(".mid"))
         tracks = []
         for part, name in result.tracks.items():
             tracks.append(out.with_name(f"{out.stem} - {part}.m4a"))
@@ -87,7 +86,7 @@ def _make(args) -> int:
         print("No words found online. Add them with --lyrics FILE.")
     elif result.words == "unplaced":
         print("The words didn't fit the tune, so the score has none.")
-    print(f"Saved {out} and {out.with_suffix('.mid')}")
+    print(f"Saved {out}")
     if tracks:
         print(f"Practice tracks: {', '.join(t.name for t in tracks)}")
     return 0

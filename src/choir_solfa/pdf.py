@@ -355,10 +355,10 @@ def _write_key_page(c: canvas.Canvas, score: Score, page_w: float, page_h: float
     heading("Practise your part")
     para("Find your line: S is soprano, A alto, T tenor, B bass. The marks line up down the page, "
          "so all four parts move together.", bullet=True)
-    para("The practice audio (MIDI file) opens in GarageBand, MuseScore (free) or any music app that plays MIDI. "
-         "Each part is its own track: mute the others to hear just yours, or slow it down.", bullet=True)
+    para("Practice tracks are on the website with this score: the recording with your part played on top, "
+         "so you hear how your line fits the song.", bullet=True)
     if score.words:
-        para("The words are printed under the soprano line. A syllable ending in a hyphen (Si-) means the word "
+        para(f"The words are printed under the {score.words_part.lower()} line. A syllable ending in a hyphen (Si-) means the word "
              "goes on to the next note. A syllable held over several notes is printed once, under the first.",
              bullet=True)
     para("This is an automatic transcription. Sing each part through and check it by ear before teaching it.",

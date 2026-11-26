@@ -10,7 +10,7 @@ browser ──► CloudFront ──► S3 (the page)
                                                                      ├─ S3: uploads and scores
                                                                      └─ starts one Fargate task per song
 Fargate task (cloud/worker.Dockerfile, python -m choir_solfa.cloud_worker): makes the song,
-writes its progress and the PDF, MIDI and text, then stops.
+writes its progress and the PDF, text and practice tracks, then stops.
 ```
 
 Everything is defined in `stack.py`, with the settings in `app.py`, and created by

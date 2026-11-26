@@ -55,7 +55,7 @@ MAX_LYRICS = 10_000  # characters of pasted words
 # same moment can't both slip under the limits (see _start_record).
 GATE = "_gate"
 BUSY = "Lots of songs are being made right now. Please try again in a few minutes."
-FILES = {"score.pdf": "application/pdf", "score.mid": "audio/midi", "score.txt": "text/plain; charset=utf-8"}
+FILES = {"score.pdf": "application/pdf", "score.txt": "text/plain; charset=utf-8"}
 # Practice tracks (choir_solfa.practice.TRACKS): part name -> file. A song has those its result lists.
 TRACKS = {"Lead": "lead.m4a", "Soprano": "soprano.m4a", "Alto": "alto.m4a", "Tenor": "tenor.m4a", "Bass": "bass.m4a",
           "All parts": "all.m4a"}
@@ -519,7 +519,7 @@ def remove_song(user: dict, job_id: str) -> dict:
     item = _get(user, job_id)
     if item["status"] in ("waiting", "working"):
         raise Problem(409, "This song is still being made.")
-    names = [*FILES, *TRACKS.values()]
+    names = [*FILES, *TRACKS.values(), "score.mid"]  # score.mid: songs made before the MIDI file was dropped
     S3.delete_objects(Bucket=BUCKET, Delete={"Objects": [{"Key": f"songs/{job_id}/{n}"} for n in names]})
     _set(job_id, removed=True, removed_at=int(time.time()))  # the record stays; the files go
     return {"removed": job_id}

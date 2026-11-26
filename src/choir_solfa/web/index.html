@@ -925,7 +925,6 @@
           Download the score (PDF)</a>
         <a class="quiet" id="openPdf" href="#" target="_blank" rel="noopener">Open to print</a>
         <a class="quiet" id="dlTxt" href="#" title="Plain text to paste into a message">Text version</a>
-        <a class="quiet" id="dlMid" href="#" title="For music apps such as GarageBand or MuseScore">MIDI file</a>
       </div>
 
       <div class="practice" id="practice" hidden>
@@ -1060,7 +1059,6 @@
       <ul>
         <li><b>Find your line:</b> S is soprano, A alto, T tenor, B bass, and L the lead singer when there are backing singers. The marks line up down the page, so all four parts move together.</li>
         <li><b>Practice tracks:</b> play your part's track under the score. It's the recording with your line played on top, so you hear how it fits the song. Save it to your phone to practise anywhere.</li>
-        <li><b>MIDI file:</b> for music apps such as GarageBand or MuseScore (free). Each part is its own track, so you can mute the others or slow it down.</li>
         <li><b>On an instrument:</b> use the letters under the notes in step 1 to play each one.</li>
         <li><b>To hand out:</b> the last page of the PDF has a short version of this guide.</li>
       </ul>
@@ -1539,12 +1537,11 @@ function showResult(id, job) {
   const base = `/api/jobs/${id}`;
   const files = job.files || {
     pdf: `${base}/score.pdf`, pdf_download: `${base}/score.pdf?download=1`,
-    txt: `${base}/score.txt`, txt_download: `${base}/score.txt?download=1`, mid_download: `${base}/score.mid?download=1`,
+    txt: `${base}/score.txt`, txt_download: `${base}/score.txt?download=1`,
   };
   $("dlPdf").href = files.pdf_download || "#";
   $("openPdf").href = files.pdf || "#";
   $("dlTxt").href = files.txt_download || "#";
-  $("dlMid").href = files.mid_download || "#";
   const tracks = files.tracks || Object.entries(r.tracks || {}).map(([part, name]) =>
     ({ part, play: `${base}/${name}`, download: `${base}/${name}?download=1` }));
   $("tracks").innerHTML = "";
