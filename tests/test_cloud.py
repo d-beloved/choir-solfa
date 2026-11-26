@@ -462,11 +462,13 @@ class FakeCognito:
     """Stands in for Cognito's token endpoint: knows one code and one renewal token."""
     def __init__(self):
         self.calls = []
+        self.dark = []
 
-    def __call__(self, page, fields):
+    def __call__(self, page, fields, dark=False):
         import io
         import urllib.error
         self.calls.append((page, fields))
+        self.dark.append(dark)
         if page == "oauth2/revoke":
             return b""
         if fields.get("code") == "good-code" or fields.get("refresh_token") == "renew-1":
@@ -524,6 +526,25 @@ def test_signing_out_revokes_and_clears_the_cookie(api, cognito):
     status, _, cookies = sign_in_call(api, "signout", cookies=["__Secure-solfa-renew=renew-1"])
     assert status == 200 and "Max-Age=0" in cookies[0]
     assert cognito.calls == [("oauth2/revoke", {"token": "renew-1"})]
+
+
+def test_signing_in_on_the_dark_page_keeps_using_the_dark_client(api, cognito, monkeypatch):
+    # The sign-in page matches the site's light / dark switch through a second client; the
+    # renewal token must go back to the client that gave it.
+    monkeypatch.setattr(api, "CLIENT_ID_DARK", "dark-client")
+    code = {"code": "good-code", "code_verifier": "v" * 43, "redirect_uri": "https://solfa.example/", "look": "dark"}
+    status, _, (cookie,) = sign_in_call(api, "token", code)
+    assert status == 200 and cookie.startswith("__Secure-solfa-renew=dark:renew-1;")
+    status, data, _ = sign_in_call(api, "renew", cookies=["__Secure-solfa-renew=dark:renew-1"])
+    assert status == 200 and data == {"id": "id-1"}
+    sign_in_call(api, "signout", cookies=["__Secure-solfa-renew=dark:renew-1"])
+    assert cognito.dark == [True, True, True]
+    assert cognito.calls[-1] == ("oauth2/revoke", {"token": "renew-1"})
+
+    # Light, or a cookie from before there were two clients: the first client.
+    sign_in_call(api, "renew", cookies=["__Secure-solfa-renew=renew-1"])
+    sign_in_call(api, "token", {**code, "look": "light"})
+    assert cognito.dark[-2:] == [False, False]
 
 
 def test_other_websites_cannot_use_the_sign_in_routes(api, cognito):

@@ -61,6 +61,10 @@ TRACKS = {"Lead": "lead.m4a", "Soprano": "soprano.m4a", "Alto": "alto.m4a", "Ten
           "All parts": "all.m4a"}
 AUTH_DOMAIN = os.environ.get("AUTH_DOMAIN", "")  # the sign-in service, e.g. https://auth.solfa.example.com
 CLIENT_ID = os.environ.get("CLIENT_ID", "")
+# A second sign-in client whose page is dark, so the sign-in page matches the site's light / dark
+# switch (Cognito's page can't be told which to show). Renewal tokens from it are marked "dark:".
+CLIENT_ID_DARK = os.environ.get("CLIENT_ID_DARK", "")
+DARK = "dark:"
 # The 30-day renewal token lives in this cookie: the page's scripts can't read it, and the browser
 # sends it only to /api/auth on this site.
 RENEW_COOKIE = "__Secure-solfa-renew"
@@ -125,32 +129,36 @@ def sign_in_route(method: str, path: str, body: dict, cookies: list[str], conten
         fields = {k: body.get(k) for k in ("code", "code_verifier", "redirect_uri")}
         if not all(isinstance(v, str) and 0 < len(v) <= 2000 for v in fields.values()):
             raise Problem(400, "Signing in didn't finish. Please try again.")
-        tokens = _cognito_token({"grant_type": "authorization_code", **fields})
+        dark = body.get("look") == "dark" and bool(CLIENT_ID_DARK)
+        tokens = _cognito_token({"grant_type": "authorization_code", **fields}, dark)
         if not tokens or not tokens.get("refresh_token"):
             raise Problem(400, "Signing in didn't finish. Please try again.")
-        return _reply(200, {"id": tokens["id_token"]}, cookies=[_renew_cookie(tokens["refresh_token"])])
+        return _reply(200, {"id": tokens["id_token"]}, cookies=[_renew_cookie(tokens["refresh_token"], dark=dark)])
     renew = _cookie(cookies, RENEW_COOKIE)
+    dark = bool(renew and renew.startswith(DARK))
+    if dark:
+        renew = renew[len(DARK):]
     if action == "renew":
-        tokens = _cognito_token({"grant_type": "refresh_token", "refresh_token": renew}) if renew else None
+        tokens = _cognito_token({"grant_type": "refresh_token", "refresh_token": renew}, dark) if renew else None
         if not tokens:
             return _reply(401, {"detail": SIGN_IN_AGAIN}, cookies=[_renew_cookie("", 0)] if renew else None)
         # Cognito only sends a new renewal token if it is set to rotate them.
         newer = tokens.get("refresh_token")
-        return _reply(200, {"id": tokens["id_token"]}, cookies=[_renew_cookie(newer)] if newer else None)
+        return _reply(200, {"id": tokens["id_token"]}, cookies=[_renew_cookie(newer, dark=dark)] if newer else None)
     if action == "signout":
         if renew:  # so the token can't be used again even if it was copied
             try:
-                _cognito("oauth2/revoke", {"token": renew})
+                _cognito("oauth2/revoke", {"token": renew}, dark)
             except (urllib.error.URLError, OSError):
                 pass
         return _reply(200, {}, cookies=[_renew_cookie("", 0)])
     raise Problem(404, "Not found.")
 
 
-def _cognito_token(fields: dict) -> dict | None:
+def _cognito_token(fields: dict, dark: bool = False) -> dict | None:
     """Tokens from Cognito, or None if it refuses (a used code, an expired renewal token)."""
     try:
-        return json.loads(_cognito("oauth2/token", fields))
+        return json.loads(_cognito("oauth2/token", fields, dark))
     except urllib.error.HTTPError as e:
         if 400 <= e.code < 500:
             return None
@@ -159,15 +167,18 @@ def _cognito_token(fields: dict) -> dict | None:
         raise Problem(502, "Signing in isn't working right now. Please try again in a minute.")
 
 
-def _cognito(page: str, fields: dict) -> bytes:
+def _cognito(page: str, fields: dict, dark: bool = False) -> bytes:
+    client = CLIENT_ID_DARK if dark and CLIENT_ID_DARK else CLIENT_ID
     request = urllib.request.Request(
-        f"{AUTH_DOMAIN}/{page}", data=urlencode({"client_id": CLIENT_ID, **fields}).encode(),
+        f"{AUTH_DOMAIN}/{page}", data=urlencode({"client_id": client, **fields}).encode(),
         headers={"Content-Type": "application/x-www-form-urlencoded"}, method="POST")
     with urllib.request.urlopen(request, timeout=10) as res:
         return res.read()
 
 
-def _renew_cookie(value: str, max_age: int = RENEW_DAYS * 86400) -> str:
+def _renew_cookie(value: str, max_age: int = RENEW_DAYS * 86400, dark: bool = False) -> str:
+    if dark and value:
+        value = DARK + value
     return f"{RENEW_COOKIE}={value}; Max-Age={max_age}; Path=/api/auth; Secure; HttpOnly; SameSite=Strict"
 
 

@@ -125,15 +125,19 @@ class ChoirSolfaStack(Stack):
                     email=cognito.ProviderAttribute.GOOGLE_EMAIL, fullname=cognito.ProviderAttribute.GOOGLE_NAME,
                     custom={"email_verified": cognito.ProviderAttribute.other("email_verified")}))
             providers.append(cognito.UserPoolClientIdentityProvider.GOOGLE)
-        client = pool.add_client(
-            "Web", generate_secret=False, auth_flows=cognito.AuthFlow(user_srp=True),
-            o_auth=cognito.OAuthSettings(
-                flows=cognito.OAuthFlows(authorization_code_grant=True),
-                scopes=[cognito.OAuthScope.OPENID, cognito.OAuthScope.EMAIL, cognito.OAuthScope.PROFILE],
-                callback_urls=site_urls, logout_urls=site_urls),
-            supported_identity_providers=providers,
-            id_token_validity=Duration.hours(1), access_token_validity=Duration.hours(1),
-            refresh_token_validity=Duration.days(30), prevent_user_existence_errors=True)
+        # Two clients that differ only in how the sign-in page looks: the page sends people to the
+        # one that matches its light / dark switch, since Cognito's page can't be told which to show.
+        def web_client(name: str) -> cognito.UserPoolClient:
+            return pool.add_client(
+                name, generate_secret=False, auth_flows=cognito.AuthFlow(user_srp=True),
+                o_auth=cognito.OAuthSettings(
+                    flows=cognito.OAuthFlows(authorization_code_grant=True),
+                    scopes=[cognito.OAuthScope.OPENID, cognito.OAuthScope.EMAIL, cognito.OAuthScope.PROFILE],
+                    callback_urls=site_urls, logout_urls=site_urls),
+                supported_identity_providers=providers,
+                id_token_validity=Duration.hours(1), access_token_validity=Duration.hours(1),
+                refresh_token_validity=Duration.days(30), prevent_user_existence_errors=True)
+        client, dark_client = web_client("Web"), web_client("WebDark")
         login = pool.add_domain(
             "Login", cognito_domain=cognito.CognitoDomainOptions(domain_prefix=settings["login_prefix"]),
             managed_login_version=cognito.ManagedLoginVersion.NEWER_MANAGED_LOGIN)
@@ -159,18 +163,21 @@ class ChoirSolfaStack(Stack):
             actions=["cognito-idp:ListUsers", "cognito-idp:AdminLinkProviderForUser"],
             resources=[f"arn:aws:cognito-idp:{self.region}:{self.account}:userpool/*"]))
         pool.add_trigger(cognito.UserPoolOperation.PRE_SIGN_UP, linker)
-        # The sign-in page in the site's colours, with its icon (login_look.json: Cognito's settings format).
+        # The sign-in page in the site's colours, with its icon (login_look.json: Cognito's settings
+        # format), light for one client and dark for the other.
         logo = base64.b64encode((ROOT / "src" / "choir_solfa" / "assets" / "icon.png").read_bytes()).decode()
-        branding = cognito.CfnManagedLoginBranding(
-            self, "LoginLook", user_pool_id=pool.user_pool_id, client_id=client.user_pool_client_id,
-            settings=json.loads((Path(__file__).parent / "login_look.json").read_text()),
-            assets=[cognito.CfnManagedLoginBranding.AssetTypeProperty(
-                category="FORM_LOGO", color_mode="DYNAMIC", extension="PNG", bytes=logo)])
-        branding.node.add_dependency(login)
-        if auth_domain:
-            branding.node.add_dependency(auth_domain)
-        if google:
-            client.node.add_dependency(google)
+        for name, web, mode in (("LoginLook", client, "LIGHT"), ("LoginLookDark", dark_client, "DARK")):
+            look = json.loads((Path(__file__).parent / "login_look.json").read_text())
+            look["categories"]["global"]["colorSchemeMode"] = mode
+            branding = cognito.CfnManagedLoginBranding(
+                self, name, user_pool_id=pool.user_pool_id, client_id=web.user_pool_client_id, settings=look,
+                assets=[cognito.CfnManagedLoginBranding.AssetTypeProperty(
+                    category="FORM_LOGO", color_mode=mode, extension="PNG", bytes=logo)])
+            branding.node.add_dependency(login)
+            if auth_domain:
+                branding.node.add_dependency(auth_domain)
+            if google:
+                web.node.add_dependency(google)
         cognito.CfnUserPoolGroup(self, "Admins", user_pool_id=pool.user_pool_id, group_name="admins",
                                  description="Can see every song on the admin list")
 
@@ -235,6 +242,7 @@ class ChoirSolfaStack(Stack):
                 "SUBNETS": ",".join(s.subnet_id for s in vpc.public_subnets), "SECURITY_GROUP": worker_sg.security_group_id,
                 # For /api/auth, which swaps sign-in codes for tokens and keeps the renewal one in a cookie.
                 "AUTH_DOMAIN": (auth_domain or login).base_url(), "CLIENT_ID": client.user_pool_client_id,
+                "CLIENT_ID_DARK": dark_client.user_pool_client_id,
             })
         table.grant_read_write_data(api_fn)
         data_bucket.grant_read_write(api_fn)
@@ -243,7 +251,7 @@ class ChoirSolfaStack(Stack):
 
         http_api = apigw.HttpApi(self, "Http", api_name="choir-solfa", create_default_stage=True)
         api_target = integrations.HttpLambdaIntegration("ApiFn", api_fn)
-        signed_in = authorizers.HttpUserPoolAuthorizer("SignedIn", pool, user_pool_clients=[client])
+        signed_in = authorizers.HttpUserPoolAuthorizer("SignedIn", pool, user_pool_clients=[client, dark_client])
         http_api.add_routes(
             path="/api/{proxy+}", methods=[apigw.HttpMethod.GET, apigw.HttpMethod.POST, apigw.HttpMethod.DELETE],
             integration=api_target, authorizer=signed_in)
@@ -298,6 +306,7 @@ class ChoirSolfaStack(Stack):
             response_headers_policy=headers)
 
         config = {"api": "", "authDomain": (auth_domain or login).base_url(), "clientId": client.user_pool_client_id,
+                  "clientIdDark": dark_client.user_pool_client_id,
                   "keepDays": keep_days, "dailyLimit": int(settings["daily_limit"]),
                   "maxMinutes": int(settings["max_song_minutes"]), "maxUploadMb": int(settings["max_upload_mb"])}
         page = PAGE.read_text(encoding="utf-8").replace("__CLOUD__", json.dumps(config))
