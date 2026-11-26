@@ -51,6 +51,21 @@ def test_a_forgotten_job_comes_back_from_disk(tmp_path, monkeypatch):
     assert server._job_from_disk("../etc") is None
 
 
+def test_practice_tracks_are_served_with_the_part_in_their_name(tmp_path, monkeypatch):
+    from fastapi.testclient import TestClient
+
+    monkeypatch.setattr(server, "JOBS", tmp_path)
+    _song(tmp_path, A, "Silent Night", 100.0)
+    (tmp_path / A / "alto.m4a").write_bytes(b"m4a")
+    client = TestClient(server.create_app(4790))
+    host = {"host": "127.0.0.1:4790"}
+    got = client.get(f"/api/jobs/{A}/alto.m4a?download=1", headers=host)
+    assert got.status_code == 200 and got.headers["content-type"] == "audio/mp4"
+    assert 'filename="Silent Night - Alto.m4a"' in got.headers["content-disposition"]
+    assert client.get(f"/api/jobs/{A}/tenor.m4a", headers=host).status_code == 404  # not made
+    assert client.get(f"/api/jobs/{A}/vocals.wav", headers=host).status_code == 404  # not a file we hand out
+
+
 
 
 def test_the_privacy_page_is_served_and_linked():

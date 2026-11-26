@@ -146,7 +146,8 @@ def test_uploads_go_to_the_persons_own_folder(api):
 
 
 def _finished(aws, job_id, user="u1", until=None):
-    result = {"title": "Silent Night", "key": "Doh is Bb", "meter": "3/4", "kind": "choir", "bars": 24}
+    result = {"title": "Silent Night", "key": "Doh is Bb", "meter": "3/4", "kind": "choir", "bars": 24,
+              "tracks": {"Soprano": "soprano.m4a", "All parts": "all.m4a", "Alto": "../other.m4a"}}
     now = int(time.time())
     aws.put_item(Item={"id": job_id, "user": user, "email": f"{user}@example.com", "created": now - 60, "status": "done",
                        "title": "Silent Night", "result": json.dumps(result), "url": "https://youtu.be/a",
@@ -158,6 +159,9 @@ def test_songs_are_private_but_admins_see_them(api, aws):
     status, job = call(api, "GET", f"/api/jobs/{'a' * 32}")
     assert status == 200 and job["status"] == "done" and job["result"]["title"] == "Silent Night"
     assert job["files"]["pdf_download"].startswith("https://") and "attachment" in job["files"]["pdf_download"]
+    tracks = job["files"]["tracks"]
+    assert [t["part"] for t in tracks] == ["Soprano", "All parts"]  # only the known track files
+    assert "soprano.m4a" in tracks[0]["play"] and "attachment" in tracks[0]["download"]
     assert job["redo"]["url"] == "https://youtu.be/a"
     assert call(api, "GET", f"/api/jobs/{'a' * 32}", user="u2")[0] == 404
     assert call(api, "GET", f"/api/jobs/{'a' * 32}", user="boss", admin=True)[0] == 200
@@ -269,6 +273,7 @@ def test_worker_makes_the_song_and_cleans_up(aws, monkeypatch, tmp_path):
 
     class R:
         title = "My Choir"
+        tracks = {"Soprano": "soprano.m4a"}
 
         def to_dict(self):
             return {"title": self.title, "key": "Doh is C"}
@@ -276,7 +281,7 @@ def test_worker_makes_the_song_and_cleans_up(aws, monkeypatch, tmp_path):
     def fake_run(source, work, **kw):
         seen.update(source=Path(source).read_bytes(), **kw)
         work.mkdir(parents=True)
-        for name in cloud_worker.FILES:
+        for name in [*cloud_worker.FILES, "soprano.m4a"]:
             (work / name).write_text(name)
         kw["progress"]("Separating the voices", 0.5)
         return R()
@@ -289,9 +294,11 @@ def test_worker_makes_the_song_and_cleans_up(aws, monkeypatch, tmp_path):
     item = aws.get_item(Key={"id": job["id"]})["Item"]
     assert item["status"] == "done" and item["title"] == "My Choir" and json.loads(item["result"])["key"] == "Doh is C"
     keys = {o["Key"] for o in s3.list_objects_v2(Bucket=BUCKET)["Contents"]}
-    assert keys == {f"songs/{job['id']}/{n}" for n in cloud_worker.FILES}  # the upload is gone
+    assert keys == {f"songs/{job['id']}/{n}" for n in [*cloud_worker.FILES, "soprano.m4a"]}  # the upload is gone
     head = s3.head_object(Bucket=BUCKET, Key=f"songs/{job['id']}/score.pdf")
     assert head["ContentType"] == "application/pdf"
+    head = s3.head_object(Bucket=BUCKET, Key=f"songs/{job['id']}/soprano.m4a")
+    assert head["ContentType"] == "audio/mp4"
 
 
 def test_worker_reports_failures_in_plain_words(aws, monkeypatch):

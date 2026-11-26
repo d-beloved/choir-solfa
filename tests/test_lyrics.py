@@ -3,11 +3,9 @@ from __future__ import annotations
 
 import time
 
-import pretty_midi
 
 from choir_solfa import lyrics
 from choir_solfa.lyrics import Line, clean_title, find, parse, place, syllables
-from choir_solfa.midi import write_midi
 from choir_solfa.models import METERS, QNote, Score
 from choir_solfa.notation import score_text
 from choir_solfa.pdf import write_pdf
@@ -132,7 +130,7 @@ def test_a_failed_lookup_finds_nothing():
     assert find("Silent Night", "Home Free", 100.0, get=broken) is None
 
 
-def test_words_are_printed_in_the_text_pdf_and_midi(tmp_path):
+def test_words_are_printed_in_the_text_and_pdf(tmp_path):
     words = place(parse("Silent night, holy night\nAll is calm"), SILENT_NIGHT, 18 * CPB, M34)
     score = Score("Silent Night", 10, 10, "major", M34, 60, 70, 18 * CPB, {"Soprano": SILENT_NIGHT}, "solo",
                   words=words)
@@ -143,8 +141,6 @@ def test_words_are_printed_in_the_text_pdf_and_midi(tmp_path):
     assert soprano.index("| fe₁") == under.index("|", under.index("night,"))  # bar lines stay in step
     write_pdf(score, str(tmp_path / "s.pdf"))
     assert (tmp_path / "s.pdf").read_bytes()[:4] == b"%PDF"
-    write_midi(score, str(tmp_path / "s.mid"))
-    assert [ly.text for ly in pretty_midi.PrettyMIDI(str(tmp_path / "s.mid")).lyrics][:3] == ["Si-", "lent", "night,"]
 
 
 def test_no_words_means_no_words_row():

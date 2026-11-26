@@ -13,7 +13,7 @@ from reportlab.pdfgen import canvas
 
 from .models import Score
 from .notation import bar_is_empty, lay_words, render_part, render_words
-from .theory import PARTS, key_label, scale_letters
+from .theory import LINES, key_label, scale_letters
 
 FONT, BOLD, ITALIC = "Helvetica", "Helvetica-Bold", "Helvetica-Oblique"
 SIZE, SMALL, WORD_SIZE = 10.5, 6.5, 9
@@ -24,7 +24,7 @@ ROW_H = 15
 SYSTEM_GAP = 16
 PULSE_PAD = 3
 MIN_PULSE = 9
-LABELS = {"Soprano": "S", "Alto": "A", "Tenor": "T", "Bass": "B"}
+LABELS = {"Lead": "L", "Soprano": "S", "Alto": "A", "Tenor": "T", "Bass": "B"}
 
 
 def _runs_width(runs) -> float:
@@ -58,13 +58,14 @@ def _words_width(laid) -> float:
 
 def build_items(score: Score) -> tuple[list, dict]:
     """Bars as layout items; runs of 2+ empty bars become one 'rest' item."""
-    names = [p for p in PARTS if p in score.parts]
+    names = [p for p in LINES if p in score.parts]
     rendered = {p: render_part(score.parts[p], p, score.total_cells, score.meter, score.doh_midi) for p in names}
     n_bars = score.total_cells // score.meter.cells_per_bar
     words = render_words(score) if score.words else None
     if words is not None:
         m = score.meter
-        marked = render_part(score.parts.get("Soprano", []), "Soprano", score.total_cells, m, score.doh_midi, True)
+        under = score.words_part
+        marked = render_part(score.parts.get(under, []), under, score.total_cells, m, score.doh_midi, True)
         gap = stringWidth(" ", ITALIC, WORD_SIZE) + 1
         words = [[lay_words(words[b][p], marked[b][p], _words_measure, gap) for p in range(m.pulses_per_bar)]
                  for b in range(n_bars)]
@@ -103,7 +104,7 @@ def write_pdf(score: Score, path: str) -> None:
     c = canvas.Canvas(path, pagesize=A4)
     c.setTitle(score.title)
     c.setAuthor("choir-solfa")
-    names = [p for p in PARTS if p in score.parts]
+    names = [p for p in LINES if p in score.parts]
     items, rendered = build_items(score)
     avail = page_w - 2 * MARGIN - LABEL_W - _sep_w("||")
 
@@ -135,19 +136,20 @@ def write_pdf(score: Score, path: str) -> None:
     c.setFont(FONT, 10)
     bpm = int(round(score.tempo_bpm))
     c.drawString(MARGIN, y, f"{key_label(score.doh_pc, score.tonic_pc, score.mode)}     {score.meter.name}     M. {bpm}")
-    for line in score.notes:
-        y -= 13
-        c.setFont(ITALIC, 8.5)
-        c.drawString(MARGIN, y, line[:140])
+    c.setFont(ITALIC, 8.5)
+    for note in score.notes:
+        for i, line in enumerate(simpleSplit(note, ITALIC, 8.5, page_w - 2 * MARGIN)[:3]):
+            y -= 13 if i == 0 else 10.5
+            c.drawString(MARGIN, y, line)
     y -= 26
 
-    # One row per part, with the words under the soprano.
+    # One row per part, with the words under the soprano (or the lead line).
     rows, row_y, offset = [], [], 0.0
     for name in names:
         rows.append(name)
         row_y.append(offset)
         offset += ROW_H
-        if name == "Soprano" and "words" in rendered:
+        if name == score.words_part and "words" in rendered:
             rows.append("words")
             row_y.append(offset - 1)
             offset += WORDS_H
@@ -353,10 +355,10 @@ def _write_key_page(c: canvas.Canvas, score: Score, page_w: float, page_h: float
     heading("Practise your part")
     para("Find your line: S is soprano, A alto, T tenor, B bass. The marks line up down the page, "
          "so all four parts move together.", bullet=True)
-    para("The practice audio (MIDI file) opens in GarageBand, MuseScore (free) or any music app that plays MIDI. "
-         "Each part is its own track: mute the others to hear just yours, or slow it down.", bullet=True)
+    para("Practice tracks are on the website with this score: the recording with your part played on top, "
+         "so you hear how your line fits the song.", bullet=True)
     if score.words:
-        para("The words are printed under the soprano line. A syllable ending in a hyphen (Si-) means the word "
+        para(f"The words are printed under the {score.words_part.lower()} line. A syllable ending in a hyphen (Si-) means the word "
              "goes on to the next note. A syllable held over several notes is printed once, under the first.",
              bullet=True)
     para("This is an automatic transcription. Sing each part through and check it by ear before teaching it.",

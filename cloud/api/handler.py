@@ -55,7 +55,10 @@ MAX_LYRICS = 10_000  # characters of pasted words
 # same moment can't both slip under the limits (see _start_record).
 GATE = "_gate"
 BUSY = "Lots of songs are being made right now. Please try again in a few minutes."
-FILES = {"score.pdf": "application/pdf", "score.mid": "audio/midi", "score.txt": "text/plain; charset=utf-8"}
+FILES = {"score.pdf": "application/pdf", "score.txt": "text/plain; charset=utf-8"}
+# Practice tracks (choir_solfa.practice.TRACKS): part name -> file. A song has those its result lists.
+TRACKS = {"Lead": "lead.m4a", "Soprano": "soprano.m4a", "Alto": "alto.m4a", "Tenor": "tenor.m4a", "Bass": "bass.m4a",
+          "All parts": "all.m4a"}
 AUTH_DOMAIN = os.environ.get("AUTH_DOMAIN", "")  # the sign-in service, e.g. https://auth.solfa.example.com
 CLIENT_ID = os.environ.get("CLIENT_ID", "")
 # A second sign-in client whose page is dark, so the sign-in page matches the site's light / dark
@@ -238,7 +241,7 @@ def create_job(user: dict, body: dict) -> dict:
     if not isinstance(lyrics, str) or len(lyrics) > MAX_LYRICS:
         raise Problem(400, "Those words are too long. Paste the words of one song.")
     lyrics = lyrics.strip()
-    if mode not in ("auto", "choir", "solo") or (meter != "auto" and meter not in METERS):
+    if mode not in ("auto", "choir", "backing", "solo") or (meter != "auto" and meter not in METERS):
         raise Problem(400, "Unknown option.")
     if upload_key:
         m = UPLOAD_KEY.match(upload_key)
@@ -482,7 +485,7 @@ def job_status(user: dict, job_id: str) -> dict:
         job["result"] = json.loads(item["result"])
         job["expired"] = _expired(item)
         if not job["expired"]:
-            job["files"] = _file_links(job_id, job["result"].get("title") or "score")
+            job["files"] = _file_links(job_id, job["result"].get("title") or "score", job["result"].get("tracks") or {})
     return job
 
 
@@ -516,7 +519,8 @@ def remove_song(user: dict, job_id: str) -> dict:
     item = _get(user, job_id)
     if item["status"] in ("waiting", "working"):
         raise Problem(409, "This song is still being made.")
-    S3.delete_objects(Bucket=BUCKET, Delete={"Objects": [{"Key": f"songs/{job_id}/{n}"} for n in FILES]})
+    names = [*FILES, *TRACKS.values(), "score.mid"]  # score.mid: songs made before the MIDI file was dropped
+    S3.delete_objects(Bucket=BUCKET, Delete={"Objects": [{"Key": f"songs/{job_id}/{n}"} for n in names]})
     _set(job_id, removed=True, removed_at=int(time.time()))  # the record stays; the files go
     return {"removed": job_id}
 
@@ -557,16 +561,23 @@ def _expired(item: dict) -> bool:
     return time.time() > int(item.get("files_until") or 0)
 
 
-def _file_links(job_id: str, title: str) -> dict:
+def _file_links(job_id: str, title: str, tracks: dict | None = None) -> dict:
     stem = "".join(ch for ch in title if ch.isalnum() or ch in " -_").strip()[:80] or "score"
+
+    def link(name: str, content_type: str, filename: str, download: bool) -> str:
+        params = {"Bucket": BUCKET, "Key": f"songs/{job_id}/{name}", "ResponseContentType": content_type,
+                  "ResponseContentDisposition": f'{"attachment" if download else "inline"}; filename="{filename}"'}
+        return S3.generate_presigned_url("get_object", Params=params, ExpiresIn=6 * 3600)
+
     links = {}
     for name, content_type in FILES.items():
         ext = name.split(".")[1]
         for download in (False, True):
-            params = {"Bucket": BUCKET, "Key": f"songs/{job_id}/{name}", "ResponseContentType": content_type,
-                      "ResponseContentDisposition": f'{"attachment" if download else "inline"}; filename="{stem}.{ext}"'}
-            links[f"{ext}{'_download' if download else ''}"] = S3.generate_presigned_url(
-                "get_object", Params=params, ExpiresIn=6 * 3600)
+            links[f"{ext}{'_download' if download else ''}"] = link(name, content_type, f"{stem}.{ext}", download)
+    links["tracks"] = [
+        {"part": part, "play": link(name, "audio/mp4", f"{stem} - {part}.m4a", False),
+         "download": link(name, "audio/mp4", f"{stem} - {part}.m4a", True)}
+        for part, name in (tracks or {}).items() if TRACKS.get(part) == name]
     return links
 
 

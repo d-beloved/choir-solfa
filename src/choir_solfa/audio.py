@@ -120,18 +120,21 @@ def key_weights(y: np.ndarray, sr: int = ANALYSIS_SR) -> np.ndarray:
     return w / (w.sum() + 1e-9)
 
 
-def polyphonic_notes(wav_path: Path) -> list[Note]:
-    """All notes heard in a vocal track (several at once), via Spotify's Basic Pitch."""
+def polyphonic_notes(wav_path: Path, *, blended: bool = False) -> list[Note]:
+    """All notes heard in a vocal track (several at once), via Spotify's Basic Pitch.
+
+    `blended` is for a group of backing singers: their voices blend into one
+    soft sound, so quieter notes are kept.
+    """
+    settings = (dict(onset_threshold=0.3, frame_threshold=0.2, minimum_note_length=80, melodia_trick=False) if blended
+                else dict(onset_threshold=0.5, frame_threshold=0.3, minimum_note_length=100, melodia_trick=True))
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
         from basic_pitch import ICASSP_2022_MODEL_PATH
         from basic_pitch.inference import predict
         with contextlib.redirect_stdout(io.StringIO()):  # basic-pitch prints debug lines
-            _, _, events = predict(
-                str(wav_path), ICASSP_2022_MODEL_PATH,
-                onset_threshold=0.5, frame_threshold=0.3, minimum_note_length=100,
-                minimum_frequency=70, maximum_frequency=1100, melodia_trick=True,
-            )
+            _, _, events = predict(str(wav_path), ICASSP_2022_MODEL_PATH, minimum_frequency=70,
+                                   maximum_frequency=1100, **settings)
     return [Note(int(p), float(s), float(e), float(a)) for s, e, p, a, _ in events]
 
 
@@ -147,8 +150,71 @@ def polyphony(notes: list[Note], duration: float, min_amp: float = 0.3, step: fl
     return float((counts[sung] >= 3).mean()) if sung.any() else 0.0
 
 
-def melody_on_grid(y: np.ndarray, cell_times: np.ndarray, sr: int = ANALYSIS_SR) -> list[QNote]:
-    """Follow a single lead voice and place its notes on the grid."""
+def singing(y: np.ndarray, sr: int = ANALYSIS_SR, hop: float = 0.1) -> np.ndarray:
+    """Loudness of a voice track in steps of `hop` seconds."""
+    import librosa
+    h = int(sr * hop)
+    return librosa.feature.rms(y=y, frame_length=2 * h, hop_length=h)[0]
+
+
+def stretches(mask: np.ndarray, hop: float, shortest: float = 1.0, join: float = 0.5) -> list[tuple[float, float]]:
+    """(start, end) in seconds of the runs of True in `mask`, joined across short gaps."""
+    out: list[list[float]] = []
+    for i in np.flatnonzero(mask):
+        t = i * hop
+        if out and t - out[-1][1] <= join:
+            out[-1][1] = t + hop
+        else:
+            out.append([t, t + hop])
+    return [(a, b) for a, b in out if b - a >= shortest]
+
+
+def unsteady_phrases(midi: np.ndarray, *, join: int = 15, shortest: int = 10, smooth: int = 5,
+                     window: int = 10, spread: float = 0.8, held_share: float = 0.4) -> list[tuple[int, int]]:
+    """Phrases (frame ranges) where the voice talks rather than sings.
+
+    `midi` is a pitch per 20 ms frame, NaN where there's no voice. Sung notes
+    hold a pitch: after smoothing out vibrato, the pitch stays within `spread`
+    semitones for `window` frames most of the time. Speech (and riffs with no
+    clear tune) glide all the time. A phrase is voiced frames joined across
+    gaps of up to `join` frames; one with at least `shortest` voiced frames
+    that holds a pitch less than `held_share` of the time is returned.
+    """
+    voiced = ~np.isnan(midi)
+    vals = np.where(voiced, midi, 0.0)
+    kernel = np.ones(smooth)
+    sums = np.convolve(vals, kernel, mode="same")
+    counts = np.convolve(voiced.astype(float), kernel, mode="same")
+    smoothed = np.where(voiced, sums / np.maximum(counts, 1), np.nan)
+    held = np.zeros(len(midi), dtype=bool)
+    if len(midi) >= window:
+        wins = np.lib.stride_tricks.sliding_window_view(smoothed, window)
+        ok = ~np.isnan(wins).any(axis=1)
+        steady = np.zeros(len(wins), dtype=bool)
+        steady[ok] = (wins[ok].max(axis=1) - wins[ok].min(axis=1)) < spread
+        for i in np.flatnonzero(steady):
+            held[i:i + window] = True
+
+    out = []
+    frames = np.flatnonzero(voiced)
+    if not frames.size:
+        return out
+    breaks = np.flatnonzero(np.diff(frames) > join + 1)
+    for a, b in zip(np.r_[0, breaks + 1], np.r_[breaks, frames.size - 1]):
+        start, end = int(frames[a]), int(frames[b]) + 1
+        v = voiced[start:end]
+        if v.sum() >= shortest and held[start:end][v].mean() < held_share:
+            out.append((start, end))
+    return out
+
+
+def melody_on_grid(y: np.ndarray, cell_times: np.ndarray,
+                   sr: int = ANALYSIS_SR) -> tuple[list[QNote], list[tuple[float, float]]]:
+    """Follow a single lead voice and place its notes on the grid.
+
+    Returns the notes and the spoken stretches (start and end in seconds, at
+    least a second of voice each) that were left out.
+    """
     import librosa
 
     sr_p = 16000
@@ -159,11 +225,19 @@ def melody_on_grid(y: np.ndarray, cell_times: np.ndarray, sr: int = ANALYSIS_SR)
     midi = librosa.hz_to_midi(np.where(voiced, f0, np.nan))
     good = ~np.isnan(midi)
     if good.sum() < 10:
-        return []
+        return [], []
     # Singers and recordings are rarely tuned exactly to A=440; centre on the song's own tuning.
     frac = midi[good] - np.round(midi[good])
     tuning = float(np.angle(np.mean(np.exp(2j * np.pi * frac))) / (2 * np.pi))
     midi = midi - tuning
+
+    # Leave out words that are spoken between the sung lines.
+    spoken = []
+    frame_s = hop / sr_p
+    for a, b in unsteady_phrases(midi):
+        if np.count_nonzero(~np.isnan(midi[a:b])) * frame_s >= 1.0:
+            spoken.append((float(times[a]), float(times[b - 1]) + frame_s))
+        midi[a:b] = np.nan
 
     onset_times = librosa.onset.onset_detect(y=y, sr=sr, units="time", backtrack=False)
     onset_cells = {int(np.argmin(np.abs(cell_times - t))) for t in onset_times}
@@ -188,7 +262,7 @@ def melody_on_grid(y: np.ndarray, cell_times: np.ndarray, sr: int = ANALYSIS_SR)
             notes[-1].end = c + 1
         else:
             notes.append(QNote(p, c, c + 1))
-    return notes
+    return notes, spoken
 
 
 def write_wav(path: Path, audio: np.ndarray, sr: int) -> None:

@@ -1,6 +1,6 @@
 # choir-solfa
 
-A tool that turns a song (link or file) into a four-part (SATB) tonic solfa score: PDF, text and MIDI. It runs as a website on AWS (`cloud/`, `infra/`, see infra/README.md) and locally. See README.md for what it does and how.
+A tool that turns a song (link or file) into a four-part (SATB) tonic solfa score: PDF, text and practice tracks. It runs as a website on AWS (`cloud/`, `infra/`, see infra/README.md) and locally. See README.md for what it does and how.
 
 ## Environment
 - Use `.venv/bin/python` (native arm64 Python 3.11, made with uv). The system Python is x86 under Rosetta; don't use it.
@@ -12,7 +12,7 @@ A tool that turns a song (link or file) into a four-part (SATB) tonic solfa scor
 ## Commands
 - Tests: `.venv/bin/python -m pytest -q`
 - Page: `.venv/bin/choir-solfa serve --no-open --port 4790`. Set `CHOIR_SOLFA_HOME` to keep test jobs out of `~/.choir-solfa`.
-- One song: `.venv/bin/choir-solfa make SONG -o out/ [--mode auto|choir|solo] [--time auto|4/4|3/4|2/4|6/8]`
+- One song: `.venv/bin/choir-solfa make SONG -o out/ [--mode auto|choir|backing|solo] [--time auto|4/4|3/4|2/4|6/8]`
 
 ## Conventions
 - Grid cells: 4 per pulse in simple time, 2 per pulse in 6/8 (`models.METERS`). Pitches are sounding MIDI; `theory.written_pitch` raises tenor and bass by an octave for the page.

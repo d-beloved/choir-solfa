@@ -4,9 +4,10 @@
 
 ![The first bars of Silent Night as written out by Choir Solfa](.github/score.png)
 
-Give it a song (a link or an audio file). Get the tonic solfa for soprano, alto, tenor and bass as a printable PDF, with the words under the soprano, plus a text version and a MIDI file to practise with.
+Give it a song (a link or an audio file). Get the tonic solfa for soprano, alto, tenor and bass as a printable PDF, with the words under the soprano, plus practice tracks (the recording with each part played on top) and a text version.
 
 - **A choir singing parts:** each part is transcribed as it was sung.
+- **A lead singer with backing singers:** the backing singers' parts are written as soprano, alto, tenor and bass, and the lead singer's line (L) goes above them, with the words. A part the backing singers don't sing is filled in with a suggested one, and the score says when they are quiet beside the lead and so harder to hear.
 - **One lead singer:** the melody becomes the soprano line, and alto, tenor and bass are written as a hymn-style arrangement under it.
 
 ## The website
@@ -36,7 +37,7 @@ The page opens at http://127.0.0.1:4790. Paste a link (Spotify, YouTube and most
 
 Every score you make is listed under **Your songs** on the page, newest first, so you can open, download or print it again later, even after closing the app. Reloading the page keeps you on the song you were looking at, or the one still being made. Scores are kept in `~/.choir-solfa/jobs/`, one folder per song. The × next to a song deletes its folder, after asking first.
 
-The page checks the link as you paste it. It tells you, for example, when a Spotify link is a playlist or album rather than one song. When a score is ready, "Doesn't look right?" offers one-click fixes: switch between choir and lead singer, or change the time signature. Each fix makes the score again from the same song.
+The page checks the link as you paste it. It tells you, for example, when a Spotify link is a playlist or album rather than one song. When a score is ready, "Doesn't look right?" offers one-click fixes: switch between a choir, a lead singer with backing singers and one lead singer, or change the time signature. Each fix makes the score again from the same song.
 
 ### Spotify links
 
@@ -52,7 +53,7 @@ From the command line:
 .venv/bin/choir-solfa make song.mp3 --mode solo --time 3/4 --title "Silent Night" --lyrics words.txt
 ```
 
-`--mode` is `auto`, `choir` or `solo`. `--time` is `auto`, `4/4`, `3/4`, `2/4` or `6/8`.
+`--mode` is `auto`, `choir`, `backing` (a lead singer with backing singers) or `solo`. `--time` is `auto`, `4/4`, `3/4`, `2/4` or `6/8`.
 
 ## Reading the score
 
@@ -84,17 +85,17 @@ For example, Silent Night opens `s :-.l :s | m :- :-` in 3/4: s on beat 1, s hel
 
 **The words.** For a link, the words are looked up and written under the soprano, each syllable under the note it's sung on. `Si- lent` means the word goes on to the next note. For an uploaded file, or when the words aren't found, paste them under **Words** on the page, each line of the song on its own line, with any repeats, as it's sung. From the command line, use `--lyrics words.txt`.
 
-**Practising.** Each part has its own row (S, A, T, B), and the beat marks line up down the page. The MIDI file opens in GarageBand, MuseScore or any MIDI player. Each part is a separate track named Soprano, Alto, Tenor and Bass, so you can mute the others or slow it down. The text version ends with a one-line key.
+**Practising.** Each part has its own row (S, A, T, B), and the beat marks line up down the page. Each part (and the lead line, when there is one) also gets a practice track: the recording with that part played on top in a soft tone, in time with the song, plus one track with all four parts. Where a written note is wrong you hear it clash with the singers, so the tracks are also the quickest way to check a score by ear. The text version ends with a one-line key.
 
 ## How it works
 
 1. **Get the audio:** yt-dlp for links (no playlists, at most 15 minutes and 300 MB). Spotify links are matched to the same recording on YouTube, as described above.
 2. **Separate the voices:** Demucs (htdemucs) splits the voices from the instruments. If the song is mostly voices (a cappella), it listens to the whole mix instead, because separation tends to drop the lowest voices.
-3. **Hear the notes:** Spotify's Basic Pitch finds every note sung, several at once. If three or more notes are often sounding together, the song is treated as a choir; otherwise as a solo.
+3. **Hear the notes:** Spotify's Basic Pitch finds every note sung, several at once. If three or more notes are often sounding together, the song is treated as a choir. Otherwise a second model ([UVR](https://github.com/Anjok07/ultimatevocalremovergui)'s MDX-Net karaoke model, downloaded once on first use, about 50 MB) splits the lead singer from the backing singers. If the backing singers sing for a good share of the song, their parts are written along with the lead singer's line; if not, the song is treated as a solo.
 4. **Find the beat and the bars:** librosa tracks the beat. A beat faster than 160 a minute is halved, because in echoing rooms the tracker can lock onto half beats. The beat is nudged to line up with where notes actually start. The time signature (3/4 or 4/4) is guessed from where long notes and chord changes fall.
 5. **Find the key:** Krumhansl key profiles over the chroma and the notes heard. Minor keys are written in the lah mode, so doh is the relative major, as is usual in tonic solfa.
 6. **Write the parts:**
-   - Choir: notes are sorted into four parts by range, keeping each line smooth.
+   - Choir: notes are sorted into four parts by range, keeping each line smooth. With backing singers, their lines are also put in the key and on the beat, and a part they leave out is written by the solo arranger below.
    - Solo: pyin follows the melody, then chords are chosen per beat and voiced with standard part-writing rules (no parallel fifths or octaves).
 7. **Place the words:** for links, the words come from [LRCLIB](https://lrclib.net). Each syllable is matched to a soprano note, allowing for held notes, rests between lines and lines the singers leave out.
 8. **Lay out the score:** standard Curwen notation (`d :r .m ,f`, `-` to hold, octave marks d¹ and d₁). Tenor and bass are written an octave above where they sound, as is customary.

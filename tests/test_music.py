@@ -142,6 +142,76 @@ def test_harmony_is_in_range_and_below_melody():
             assert n.pitch % 12 in CHORDS[chords[n.start // 4]]
 
 
+def test_fold_octaves_moves_stray_notes_back():
+    from choir_solfa.voices import fold_octaves
+    tune = [67, 69, 55, 71, 72, 84, 71, 69, 43, 67]  # 55, 84 and 43 are octave slips
+    out = fold_octaves([q(p, i, 1) for i, p in enumerate(tune)])
+    assert [n.pitch for n in out] == [67, 69, 67, 71, 72, 72, 71, 69, 67, 67]
+
+
+def test_fold_octaves_keeps_a_real_leap():
+    from choir_solfa.voices import fold_octaves
+    tune = [60, 62, 64, 65, 67, 72, 71, 69, 67, 65]  # an octave from d to d' over a scale
+    assert [n.pitch for n in fold_octaves([q(p, i, 1) for i, p in enumerate(tune)])] == tune
+
+
+def test_choir_tune_moves_slides_into_the_key():
+    from choir_solfa.voices import choir_tune
+    # C major. A slide 63 into 64 joins the 64; a blue 70 between 67 and 72 sits on 69, nearer the line.
+    melody = [QNote(60, 0, 4), QNote(63, 4, 6), QNote(64, 6, 12), QNote(67, 12, 16), QNote(70, 16, 20), QNote(72, 20, 24)]
+    out = choir_tune(melody, 0, "major", M44)
+    assert [(n.pitch, n.start, n.end) for n in out] == [(60, 0, 4), (64, 4, 12), (67, 12, 16), (69, 16, 20), (72, 20, 24)]
+    assert all(n.pitch % 12 in (0, 2, 4, 5, 7, 9, 11) for n in out)
+
+
+def test_choir_tune_keeps_the_raised_seventh_in_minor():
+    from choir_solfa.voices import choir_tune
+    melody = [QNote(57, 0, 4), QNote(68, 4, 8), QNote(69, 8, 16)]  # l se l in A minor (doh C)
+    assert [n.pitch for n in choir_tune(melody, 0, "minor", M44)] == [57, 68, 69]
+
+
+def test_choir_tune_smooths_a_flick_and_puts_notes_on_eighths():
+    from choir_solfa.voices import choir_tune
+    # 67 with a quick flick to 69 and back; then notes a sixteenth off the beat.
+    melody = [QNote(67, 0, 3), QNote(69, 3, 5), QNote(67, 5, 8), QNote(64, 9, 12), QNote(62, 15, 18)]
+    out = choir_tune(melody, 0, "major", M44)
+    assert [(n.pitch, n.start, n.end) for n in out] == [(67, 0, 8), (64, 8, 12), (62, 16, 18)]
+    assert all(n.start % 2 == 0 and n.end % 2 == 0 for n in out)
+
+
+def test_spoken_phrases_are_found_and_sung_ones_kept():
+    from choir_solfa.audio import unsteady_phrases
+    rng = np.random.default_rng(0)
+    t = np.arange(150) * 0.02
+    sung = 67 + 0.4 * np.sin(2 * np.pi * 5.5 * t)  # a held note with vibrato
+    sung[75:] = 69 + 0.4 * np.sin(2 * np.pi * 5.5 * t[75:])
+    talk = 55 + np.cumsum(rng.normal(0, 0.6, 150))  # pitch wandering all the time
+    gap = np.full(30, np.nan)
+    midi = np.concatenate([sung, gap, talk, gap, sung])
+    phrases = unsteady_phrases(midi)
+    assert phrases == [(180, 330)]
+
+
+def test_bars_text_text():
+    from choir_solfa.pipeline import bars_text
+    cells = np.arange(0, 16 * 12) * 0.125  # 16 cells (2 s) a bar
+    assert bars_text([], cells, 0, 16, 16 * 12) == ""
+    assert bars_text([(2.0, 3.9)], cells, 0, 16, 16 * 12) == "bar 2"
+    assert bars_text([(2.0, 6.1), (16.0, 17.0)], cells, 0, 16, 16 * 12) == "bars 2-4 and 9"
+    # Talking before the first sung bar (bars were moved back by 4) and after the last one.
+    assert bars_text([(1.0, 7.0), (10.0, 11.0), (23.0, 23.9)], cells, -64, 16, 16 * 6) == "at the start, bar 2 and at the end"
+
+
+def test_harmony_under_a_very_low_note_still_uses_the_chord():
+    # A melody note too low to write parts under must not leave fixed notes outside the chord.
+    melody = [q(67, 0, 1), q(64, 1, 1), q(43, 2, 1), q(41, 3, 1), q(60, 4, 4)]
+    chords = choose_chords(melody, 6, "major", M44, 32)
+    parts = harmonize(melody, 6, "major", M44, 32)
+    for name in ("Alto", "Tenor", "Bass"):
+        for n in parts[name]:
+            assert (n.pitch - 6) % 12 in CHORDS[chords[n.start // 4]], name
+
+
 def test_pdf_writes(tmp_path):
     tune = [67, 67, 69, 67, 72, 71, 67, 67, 69, 67, 74, 72]
     melody = [q(p, i, 1) for i, p in enumerate(tune)] + [q(72, 20, 4)]
@@ -218,3 +288,17 @@ def test_fold_fast_beats_keeps_the_half_the_notes_start_on():
     assert np.isclose(beats[0], 0.2)
     slow = np.arange(0, 20, 0.6)
     assert np.array_equal(fold_fast_beats(slow, notes), slow)
+
+
+def test_drop_strays_leaves_out_lone_blips():
+    from choir_solfa.voices import drop_strays
+    notes = [QNote(60, 0, 2), QNote(64, 40, 48), QNote(65, 48, 50), QNote(67, 80, 82)]
+    assert [n.pitch for n in drop_strays(notes, gap=16, longest=4)] == [64, 65]
+
+
+def test_choir_tune_lifts_a_low_phrase_into_the_soprano_range():
+    from choir_solfa.voices import choir_tune
+    low = [QNote(p, 4 * i, 4 * i + 4) for i, p in enumerate([55, 57, 59, 60])]  # s l t d an octave down
+    high = [QNote(p, 32 + 4 * i, 36 + 4 * i) for i, p in enumerate([67, 69, 71, 72])]
+    out = choir_tune(low + high, 0, "major", M44)
+    assert [n.pitch for n in out] == [67, 69, 71, 72, 67, 69, 71, 72]

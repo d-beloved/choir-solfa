@@ -29,6 +29,17 @@ RUN for i in 1 2 3 4 5; do \
       echo "model download failed, trying again"; sleep 15; \
     done; exit 1
 
+# And the model that tells the backing singers from the lead singer (checked against its hash;
+# keep these in step with src/choir_solfa/karaoke.py).
+ARG KARA_URL=https://github.com/TRvlvr/model_repo/releases/download/all_public_uvr_models/UVR_MDXNET_KARA_2.onnx
+ARG KARA_SHA256=bf32e15105a09c0f7dddd2b67346146334d6f3ecb399ed7638eba2ab07cbf5f4
+RUN mkdir -p "$TORCH_HOME/hub/checkpoints" && cd "$TORCH_HOME/hub/checkpoints" && \
+    for i in 1 2 3 4 5; do \
+      python -c "import urllib.request as u; u.urlretrieve('$KARA_URL', 'kara.part')" \
+      && echo "$KARA_SHA256  kara.part" | sha256sum -c - && mv kara.part UVR_MDXNET_KARA_2.onnx && exit 0; \
+      echo "model download failed, trying again"; rm -f kara.part; sleep 15; \
+    done; exit 1
+
 COPY --from=warp /out/ /usr/local/bin/
 COPY pyproject.toml README.md LICENSE ./
 COPY src ./src

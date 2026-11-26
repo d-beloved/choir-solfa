@@ -67,6 +67,7 @@ class Score:
     doh_midi: int        # MIDI number of the unmarked doh
     total_cells: int
     parts: dict[str, list[QNote]]
-    kind: str            # "choir" (parts heard) or "solo" (parts arranged)
+    kind: str            # "choir" (parts heard), "backing" (lead + backing singers' parts) or "solo" (arranged)
     notes: list[str] = field(default_factory=list)
-    words: dict[int, str] = field(default_factory=dict)  # grid cell -> syllables sung there (soprano)
+    words: dict[int, str] = field(default_factory=dict)  # grid cell -> syllables sung there
+    words_part: str = "Soprano"  # the line the words are printed under

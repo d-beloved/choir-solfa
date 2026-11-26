@@ -26,7 +26,7 @@ def main(argv: list[str] | None = None) -> int:
     make = sub.add_parser("make", help="make a PDF from a file or link without the page")
     make.add_argument("song", help="audio/video file or a link to the song")
     make.add_argument("-o", "--out", default=None, help="PDF path (default: <title>.pdf here)")
-    make.add_argument("--mode", choices=["auto", "choir", "solo"], default="auto")
+    make.add_argument("--mode", choices=["auto", "choir", "backing", "solo"], default="auto")
     make.add_argument("--time", choices=["auto", *METERS], default="auto")
     make.add_argument("--title", default=None)
     make.add_argument("--lyrics", default=None, metavar="FILE",
@@ -73,7 +73,10 @@ def _make(args) -> int:
         out = output_path(args.out, safe)
         out.parent.mkdir(parents=True, exist_ok=True)
         shutil.copyfile(result.pdf, out)
-        shutil.copyfile(result.midi, out.with_suffix(".mid"))
+        tracks = []
+        for part, name in result.tracks.items():
+            tracks.append(out.with_name(f"{out.stem} - {part}.m4a"))
+            shutil.copyfile(result.pdf.parent / name, tracks[-1])
     print(f"{result.title}: {result.key}, {result.meter}, M. {result.tempo}, {result.bars} bars ({result.kind})")
     if result.found_on:
         print(f"Audio taken from: {result.found_on} ({result.found_url})")
@@ -83,7 +86,9 @@ def _make(args) -> int:
         print("No words found online. Add them with --lyrics FILE.")
     elif result.words == "unplaced":
         print("The words didn't fit the tune, so the score has none.")
-    print(f"Saved {out} and {out.with_suffix('.mid')}")
+    print(f"Saved {out}")
+    if tracks:
+        print(f"Practice tracks: {', '.join(t.name for t in tracks)}")
     return 0
 
 

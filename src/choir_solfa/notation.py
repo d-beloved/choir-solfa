@@ -125,7 +125,7 @@ def split_marks(runs: list[Run]) -> tuple[list[Run], dict[int, int]]:
 
 
 def render_words(score) -> list[list[list[tuple[int, str]]]]:
-    """Bars -> pulses -> (cell in the pulse, syllables sung there) under the soprano."""
+    """Bars -> pulses -> (cell in the pulse, syllables sung there) under the words line."""
     m = score.meter
     out = []
     for b in range(score.total_cells // m.cells_per_bar):
@@ -194,15 +194,16 @@ def score_text(score, bars_per_line: int = 4) -> str:
     Every pulse is padded to the widest part so the beats line up in a
     monospaced font.
     """
-    from .theory import PARTS, key_label
+    from .theory import LINES, key_label
 
-    names = [p for p in PARTS if p in score.parts]
+    names = [p for p in LINES if p in score.parts]
     meter = score.meter
     rendered = {p: render_part(score.parts[p], p, score.total_cells, meter, score.doh_midi) for p in names}
     n_bars = score.total_cells // meter.cells_per_bar
     words = render_words(score) if score.words else None
     if words is not None:
-        marked = render_part(score.parts.get("Soprano", []), "Soprano", score.total_cells, meter, score.doh_midi, True)
+        under = score.words_part
+        marked = render_part(score.parts.get(under, []), under, score.total_cells, meter, score.doh_midi, True)
         words = [[words_line(lay_words(words[b][k], marked[b][k], _text_measure, 1)) for k in range(meter.pulses_per_bar)]
                  for b in range(n_bars)]
     lines = [score.title, f"{key_label(score.doh_pc, score.tonic_pc, score.mode)}   {meter.name}   M. {round(score.tempo_bpm)}"]
@@ -213,7 +214,7 @@ def score_text(score, bars_per_line: int = 4) -> str:
         rows = list(names)
         if words is not None:
             text["words"] = [[words[b][k] for k in range(meter.pulses_per_bar)] for b in bars]
-            rows.insert(rows.index("Soprano") + 1 if "Soprano" in rows else 0, "words")
+            rows.insert(rows.index(under) + 1 if under in rows else 0, "words")
         width = [[max(len(text[p][i][k]) for p in rows) for k in range(meter.pulses_per_bar)] for i in range(len(bars))]
         lines += ["", f"Bar {start + 1}"]
         for p in rows:
@@ -229,5 +230,5 @@ def score_text(score, bars_per_line: int = 4) -> str:
     lines += ["", "How to read: | bar line   : beat   - hold the note   . half beat   , quarter beat   "
                   "d¹ higher   s₁ lower   (blank) rest"]
     if words is not None:
-        lines.append("The words are under the soprano line. Si- means the word goes on to the next note.")
+        lines.append(f"The words are under the {score.words_part.lower()} line. Si- means the word goes on to the next note.")
     return "\n".join(lines) + "\n"
